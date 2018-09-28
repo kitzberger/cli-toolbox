@@ -1,0 +1,16 @@
+{
+	"name": "kitzberger/cli-toolbox",
+	"type": "typo3-cms-extension",
+	"description": "TYPO3 CLI toolbox",
+	"homepage": "https://github.com/Kitzberger/cli-toolbox",
+	"license": ["GPL-2.0+"],
+	"keywords": ["TYPO3 CMS"],
+	"require": {
+		"typo3/cms": ">=6.2.0"
+	},
+	"autoload": {
+		"psr-4": {
+			"Kitzberger\\CliToolbox\\": "Classes/"
+		}
+	}
+}
