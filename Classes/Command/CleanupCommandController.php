@@ -12,12 +12,18 @@ class CleanupCommandController extends CommandController
 	 *
 	 * @param int $pid
 	 * @param boolean $dryRun
+	 * @param string $memoryLimit (e.g. 512M)
 	 */
-	public function deleteCommand($pid = null, $dryRun = false)
+	public function deleteCommand($pid = null, $dryRun = false, $memoryLimit = null)
 	{
 		if (is_null($pid)) {
 			echo 'Please specify pid!' . "\n";
 			exit;
+		}
+
+		if ($memoryLimit) {
+			ini_set('memory_limit', $memoryLimit);
+			echo 'Set memory_limit to: ' . ini_get('memory_limit') . "\n";
 		}
 
 		// Get all page ids
