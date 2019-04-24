@@ -2,7 +2,7 @@
 	"name": "kitzberger/cli-toolbox",
 	"type": "typo3-cms-extension",
 	"description": "TYPO3 CLI toolbox",
-	"homepage": "https://github.com/Kitzberger/cli-toolbox",
+	"homepage": "https://github.com/kitzberger/cli-toolbox",
 	"license": ["GPL-2.0+"],
 	"keywords": ["TYPO3 CMS"],
 	"require": {
