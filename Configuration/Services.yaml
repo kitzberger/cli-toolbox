@@ -4,8 +4,30 @@ services:
     autoconfigure: true
     public: false
 
+  Kitzberger\CliToolbox\Command\CopyCommand:
+    tags:
+      - name: 'console.command'
+        command: 'toolbox:copy'
+        description: 'DataHandler "copy" command'
+        schedulable: false
+
+  Kitzberger\CliToolbox\Command\DeleteCommand:
+    tags:
+      - name: 'console.command'
+        command: 'toolbox:delete'
+        description: 'Recursive delete command, use with caution!'
+        schedulable: false
+
+  Kitzberger\CliToolbox\Command\MoveCommand:
+    tags:
+      - name: 'console.command'
+        command: 'toolbox:move'
+        description: 'DataHandler "move" command'
+        schedulable: false
+
   Kitzberger\CliToolbox\Command\TreeCommand:
     tags:
       - name: 'console.command'
         command: 'toolbox:tree'
-        schedulable: true
+        description: 'Determine all uids of a pagetree of a given root uid'
+        schedulable: false
