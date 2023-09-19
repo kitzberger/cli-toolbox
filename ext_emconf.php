@@ -4,19 +4,8 @@ $EM_CONF[$_EXTKEY] = [
     'title' => 'CLI toolbox',
     'description' => '',
     'category' => 'system',
-    'shy' => 0,
-    'dependencies' => 'cms',
-    'conflicts' => '',
-    'priority' => '',
-    'loadOrder' => '',
-    'module' => '',
     'state' => 'stable',
-    'internal' => 0,
-    'uploadfolder' => 0,
-    'createDirs' => '',
-    'modify_tables' => '',
-    'clearCacheOnLoad' => 1,
-    'lockType' => '',
+    'clearCacheOnLoad' => true,
     'author' => 'Philipp Kitzberger',
     'author_email' => 'typo3@kitze.net',
     'author_company' => '',
@@ -29,7 +18,5 @@ $EM_CONF[$_EXTKEY] = [
         ],
         'suggests' => [
         ],
-    ],
-    'suggests' => [
     ],
 ];
