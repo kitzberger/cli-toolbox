@@ -12,7 +12,7 @@ use TYPO3\CMS\Core\Exception\SiteNotFoundException;
 use TYPO3\CMS\Core\Site\SiteFinder;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 
-class TreeCommand extends Command
+class TreeCommand extends AbstractCommand
 {
     /**
      * @var SymfonyStyle
@@ -48,7 +48,7 @@ class TreeCommand extends Command
      */
     protected function execute(InputInterface $input, OutputInterface $output)
     {
-    	$this->io = new SymfonyStyle($input, $output);
+        $this->io = new SymfonyStyle($input, $output);
 
         $siteFinder = GeneralUtility::makeInstance(SiteFinder::class);
 
@@ -78,19 +78,5 @@ class TreeCommand extends Command
         $this->outputLine($pidList);
 
         return self::SUCCESS;
-    }
-
-    /**
-     * Outputs specified text to the console window and appends a line break
-     *
-     * @param  string $string Text to output
-     * @param  array  $arguments Optional arguments to use for sprintf
-     * @return void
-     */
-    protected function outputLine(string $string, $arguments = [])
-    {
-        if ($this->io) {
-            $this->io->text(vsprintf($string, $arguments));
-        }
     }
 }

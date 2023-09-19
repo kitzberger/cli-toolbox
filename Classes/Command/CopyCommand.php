@@ -2,7 +2,6 @@
 
 namespace Kitzberger\CliToolbox\Command;
 
-use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
@@ -13,9 +12,15 @@ use TYPO3\CMS\Core\DataHandling\DataHandler;
 use TYPO3\CMS\Core\Utility\ExtensionManagementUtility;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 
-class CopyCommand extends Command
+class CopyCommand extends AbstractCommand
 {
-    protected $table = 'pages';
+    protected const DEPTH = 99;
+    // protected const TABLES = [
+    //     'pages',
+    //     'tt_content',
+    //     'sys_template',
+    // ];
+
     protected $action = 'copy';
 
     /**
@@ -30,36 +35,41 @@ class CopyCommand extends Command
     {
         $this->setDescription('DataHandler ' . $this->action . ' command');
 
-        $this->addArgument(
-            'be_user',
-            InputArgument::REQUIRED,
-            'uid of be_user that performs this operation',
+        $this->addOption(
+            'table',
+            null,
+            InputOption::VALUE_OPTIONAL,
+            'Name of DB table?',
+            'pages'
         );
 
-        $this->addArgument(
+        $this->addOption(
             'source',
-            InputArgument::REQUIRED,
+            null,
+            InputOption::VALUE_REQUIRED,
             'pid of source page in pagetree',
         );
 
-        $this->addArgument(
+        $this->addOption(
             'target',
-            InputArgument::REQUIRED,
+            null,
+            InputOption::VALUE_REQUIRED,
             'pid of target page in pagetree',
         );
 
-        $this->addArgument(
-            'memory_limit',
-            InputArgument::OPTIONAL,
-            'Override PHP memory_limit (e.g. 512M)',
+        $this->addOption(
+            'be-user',
+            null,
+            InputOption::VALUE_OPTIONAL,
+            'uid of be_user that performs this operation',
         );
 
-        // $this->addOption(
-        //     'dry-run',
-        //     'n',
-        //     InputOption::VALUE_OPTIONAL,
-        //     'Dry-run?'
-        // );
+        $this->addOption(
+            'memory-limit',
+            null,
+            InputOption::VALUE_OPTIONAL,
+            'Override PHP memory_limit (e.g. 512M)',
+        );
     }
 
     /**
@@ -70,48 +80,89 @@ class CopyCommand extends Command
      */
     protected function execute(InputInterface $input, OutputInterface $output)
     {
-        $this->io = new SymfonyStyle($input, $output);
+        parent::execute($input, $output);
 
-        $source = $input->getArgument('source');
-        $target = $input->getArgument('target');
+        $table = $input->getOption('table');
+        $source = $input->getOption('source');
+        $target = $input->getOption('target');
 
-        $memoryLimit = $input->getArgument('memory_limit');
-        if ($memoryLimit) {
-            ini_set('memory_limit', $memoryLimit);
-            $this->outputLine('Set memory_limit to: ' . ini_get('memory_limit'));
+        if (empty($source) || empty($target)) {
+            $this->outputLine('<error>Please specify source and target!</>');
+            return self::FAILURE;
         }
 
-        #$dryRun = $input->getOption('dry-run');
+        $beUserOverride = $input->getOption('be-user');
+        if ($beUserOverride) {
+            $beUser = BackendUtility::getRecord('be_users', $beUserOverride);
+            if ($beUser) {
+                $GLOBALS['BE_USER']->user = $beUser;
+                $GLOBALS['BE_USER']->username = $beUser['username'];
+            } else {
+                $output->writeln('<error>No user found with uid ' . $beUserOverride . '</>');
+                return self::FAILURE;
+            }
+        }
 
-        // Make sure result is pretty ;-)
-        ExtensionManagementUtility::addPageTSConfig('TCEMAIN.table.' . $table . '.disableHideAtCopy = 1');
-        ExtensionManagementUtility::addPageTSConfig('TCEMAIN.table.' . $table . '.disablePrependAtCopy = 1');
+        $this->outputLine('memory_limit: ' . ini_get('memory_limit') . '</>');
+        $memoryLimit = $input->getOption('memory-limit');
+        if ($memoryLimit) {
+            ini_set('memory_limit', $memoryLimit);
+            $this->outputLine('<bg=bright-blue>memory_limit (override!): ' . ini_get('memory_limit') . '</>');
+        }
 
-        $fakeBeUser = clone $GLOBALS['BE_USER'];
-        $fakeBeUser->user = BackendUtility::getRecord('be_users', $beUser);
+        $this->outputLine('');
 
         $cmd = [
             $table => [
-                $uid => [
-                    $this->action => $pid
+                $source => [
+                    $this->action => $target
                 ],
             ],
         ];
 
+        // Log in user!
+        $GLOBALS['BE_USER']->backendCheckLogin();
+
+        $this->outputLine(
+            '<info>Running command as \'%s\' (%sadmin)</>',
+            [
+                $GLOBALS['BE_USER']->username,
+                $GLOBALS['BE_USER']->isAdmin() ? '' : 'no '
+            ]
+        );
+
         if ($output->isVerbose()) {
-            $this->outputLine('Running command as \'' . $fakeBeUser->user['username'] . '\'');
             $this->outputLine(print_r($cmd, true));
         }
 
-        $tce = GeneralUtility::makeInstance(DataHandler::class);
-        $tce->stripslashes_values = 0;
-        $tce->start([], $cmd, $fakeBeUser);
-        $tce->process_cmdmap();
+        if ($this->io->confirm('Continue?', true)) {
+            // Make sure result is pretty ;-)
+            ExtensionManagementUtility::addPageTSConfig('TCEMAIN.table.' . $table . '.disableHideAtCopy = 1');
+            ExtensionManagementUtility::addPageTSConfig('TCEMAIN.table.' . $table . '.disablePrependAtCopy = 1');
 
-        if ($tce->errorLog) {
-            print_r($tce->errorLog);
+            // Perform operation
+            $dataHandler = GeneralUtility::makeInstance(DataHandler::class);
+            $dataHandler->copyTree = self::DEPTH;
+            #$dataHandler->copyWhichTables = join(',', self::TABLES);
+            $dataHandler->start([], $cmd, $GLOBALS['BE_USER']);
+            $dataHandler->process_cmdmap();
+
+            // Any problems?
+            if (!empty($dataHandler->errorLog)) {
+                $this->io->writeln('<error>Errors while ' . $this->action . 'ing page tree!</>');
+                $this->logger->error('Errors while ' . $this->action . 'ing page tree!');
+                foreach ($dataHandler->errorLog as $log) {
+                    $this->io->writeln('<error>' . $log . '</>');
+                    $this->logger->error($log);
+                }
+                return self::FAILURE;
+            }
         }
 
-        return $tce->copyMappingArray_merged[$this->table][$uid];
+        if ($this->action === 'copy') {
+            $this->outputLine('New uid: ' . $dataHandler->copyMappingArray_merged[$table][$source]);
+        }
+
+        return self::SUCCESS;
     }
 }
