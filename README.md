@@ -9,6 +9,14 @@ bin/typo3 toolbox:tree my-site-identifier
 bin/typo3 toolbox:tree 123
 ```
 
+## Categorytree
+
+Determine uids of all children in the categorytree of a given root uid:
+
+```bash
+bin/typo3 toolbox:tree 321 --table=sys_category
+```
+
 ## Recursive delete
 
 (!) Use with caution and backup!

@@ -2,18 +2,24 @@
 
 namespace Kitzberger\CliToolbox\Command;
 
+use Kitzberger\CliToolbox\Database\QueryGenerator;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
+use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Style\SymfonyStyle;
-use TYPO3\CMS\Core\Database\QueryGenerator;
 use TYPO3\CMS\Core\Exception\SiteNotFoundException;
 use TYPO3\CMS\Core\Site\SiteFinder;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 
 class TreeCommand extends AbstractCommand
 {
+    private const PARENT_FIELDS = [
+        'pages' => 'pid',
+        'sys_category' => 'parent',
+    ];
+
     /**
      * @var SymfonyStyle
      */
@@ -29,14 +35,23 @@ class TreeCommand extends AbstractCommand
         $this->addArgument(
             'root',
             InputArgument::REQUIRED,
-            'Site identifier or uid',
+            'root node uid (or site identifier)',
         );
 
-        $this->addArgument(
+        $this->addOption(
             'depth',
-            InputArgument::OPTIONAL,
+            null,
+            InputOption::VALUE_OPTIONAL,
             'Depth of recursive pagetree lookup',
             10
+        );
+
+        $this->addOption(
+            'table',
+            null,
+            InputOption::VALUE_OPTIONAL,
+            'Name of DB table?',
+            'pages'
         );
     }
 
@@ -53,27 +68,38 @@ class TreeCommand extends AbstractCommand
         $siteFinder = GeneralUtility::makeInstance(SiteFinder::class);
 
         $root = $input->getArgument('root');
-        $depth = $input->getArgument('depth');
+        $depth = $input->getOption('depth');
+        $table = $input->getOption('table');
 
-        if (is_numeric($root)) {
-            $pid = $root;
-        } else {
-            $identifier = $root;
-            try {
-                $site = $siteFinder->getSiteByIdentifier($identifier);
-            } catch (SiteNotFoundException $e) {
-                $this->outputLine('<error>No site found!</>');
-                return self::FAILURE;
-            }
-
-            $pid = $site->getRootPageId();
-            $this->outputLine('Determining pagetree of site: ' . $identifier);
+        if (!in_array($table, array_keys(self::PARENT_FIELDS))) {
+            $this->outputLine('<error>Table not supported yet!</>');
+            return self::FAILURE;
         }
 
-        $this->outputLine('Determining pagetree of pid: ' . $pid);
+        if ($table === 'pages') {
+            if (!is_numeric($root)) {
+                $identifier = $root;
+                try {
+                    $site = $siteFinder->getSiteByIdentifier($identifier);
+                } catch (SiteNotFoundException $e) {
+                    $this->outputLine('<error>No site found!</>');
+                    return self::FAILURE;
+                }
+
+                $root = $site->getRootPageId();
+                $this->outputLine('Determining root pid of site: ' . $identifier);
+            }
+        }
+
+        if (!is_numeric($root)) {
+            $this->outputLine('<error>Root node id should be numeric!</>');
+            return self::FAILURE;
+        }
+
+        $this->outputLine('Determining ' . $table . ' tree of root id: ' . $root);
 
         $queryGenerator = GeneralUtility::makeInstance(QueryGenerator::class);
-        $pidList = $queryGenerator->getTreeList($pid, $depth);
+        $pidList = $queryGenerator->getTreeList($root, $depth, 0, $table, self::PARENT_FIELDS[$table]);
 
         $this->outputLine($pidList);
 
