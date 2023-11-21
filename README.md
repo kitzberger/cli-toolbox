@@ -2,11 +2,16 @@
 
 ## Pagetree
 
-Determine uids of all children in the pagetree of a given site identifier or root uid:
+Determine uids of all children in the pagetree of a given root uid:
+
+```bash
+bin/typo3 toolbox:tree 123 [--table=pages] [--depth=10] [--separator=,]
+```
+
+A site identifier can be used instead of the root uid:
 
 ```bash
 bin/typo3 toolbox:tree my-site-identifier
-bin/typo3 toolbox:tree 123
 ```
 
 ## Categorytree

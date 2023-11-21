@@ -21,11 +21,6 @@ class TreeCommand extends AbstractCommand
     ];
 
     /**
-     * @var SymfonyStyle
-     */
-    protected $io = null;
-
-    /**
      * Configure the command by defining the name
      */
     protected function configure()
@@ -53,6 +48,14 @@ class TreeCommand extends AbstractCommand
             'Name of DB table?',
             'pages'
         );
+
+        $this->addOption(
+            'separator',
+            null,
+            InputOption::VALUE_OPTIONAL,
+            'Separator used in result list?',
+            ','
+        );
     }
 
     /**
@@ -63,16 +66,15 @@ class TreeCommand extends AbstractCommand
      */
     protected function execute(InputInterface $input, OutputInterface $output)
     {
-        $this->io = new SymfonyStyle($input, $output);
-
         $siteFinder = GeneralUtility::makeInstance(SiteFinder::class);
 
         $root = $input->getArgument('root');
         $depth = $input->getOption('depth');
         $table = $input->getOption('table');
+        $separator = $input->getOption('separator');
 
         if (!in_array($table, array_keys(self::PARENT_FIELDS))) {
-            $this->outputLine('<error>Table not supported yet!</>');
+            $output->writeln('<error>Table not supported yet!</>');
             return self::FAILURE;
         }
 
@@ -82,26 +84,39 @@ class TreeCommand extends AbstractCommand
                 try {
                     $site = $siteFinder->getSiteByIdentifier($identifier);
                 } catch (SiteNotFoundException $e) {
-                    $this->outputLine('<error>No site found!</>');
+                    $output->writeln('<error>No site found!</>');
                     return self::FAILURE;
                 }
 
                 $root = $site->getRootPageId();
-                $this->outputLine('Determining root pid of site: ' . $identifier);
+                $output->writeln('Determining root pid of site: ' . $identifier, OutputInterface::VERBOSITY_VERBOSE);
             }
         }
 
         if (!is_numeric($root)) {
-            $this->outputLine('<error>Root node id should be numeric!</>');
+            $output->writeln('<error>Root node id should be numeric!</>');
             return self::FAILURE;
         }
 
-        $this->outputLine('Determining ' . $table . ' tree of root id: ' . $root);
+        $output->writeln('Determining ' . $table . ' tree of root id: ' . $root, OutputInterface::VERBOSITY_VERBOSE);
 
         $queryGenerator = GeneralUtility::makeInstance(QueryGenerator::class);
         $pidList = $queryGenerator->getTreeList($root, $depth, 0, $table, self::PARENT_FIELDS[$table]);
 
-        $this->outputLine($pidList);
+        if ($separator !== ',') {
+            switch ($separator) {
+                case '\n':
+                    $separator = PHP_EOL;
+                    break;
+                case '\t':
+                    $separator = chr(9);
+                    break;
+            }
+            $pidList = GeneralUtility::intExplode(',', $pidList, true);
+            $pidList = join($separator, $pidList);
+        }
+
+        $output->write($pidList);
 
         return self::SUCCESS;
     }
