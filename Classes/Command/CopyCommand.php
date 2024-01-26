@@ -15,11 +15,6 @@ use TYPO3\CMS\Core\Utility\GeneralUtility;
 class CopyCommand extends AbstractCommand
 {
     protected const DEPTH = 99;
-    // protected const TABLES = [
-    //     'pages',
-    //     'tt_content',
-    //     'sys_template',
-    // ];
 
     protected $action = 'copy';
 
@@ -65,6 +60,14 @@ class CopyCommand extends AbstractCommand
         );
 
         $this->addOption(
+            'allowed-tables',
+            null,
+            InputOption::VALUE_OPTIONAL,
+            'Allowed DB table?',
+            '*'
+        );
+
+        $this->addOption(
             'memory-limit',
             null,
             InputOption::VALUE_OPTIONAL,
@@ -85,6 +88,7 @@ class CopyCommand extends AbstractCommand
         $table = $input->getOption('table');
         $source = $input->getOption('source');
         $target = $input->getOption('target');
+        $allowedTables = $input->getOption('allowed-tables');
 
         if (empty($source) || empty($target)) {
             $this->outputLine('<error>Please specify source and target!</>');
@@ -133,6 +137,9 @@ class CopyCommand extends AbstractCommand
 
         if ($output->isVerbose()) {
             $this->outputLine(print_r($cmd, true));
+            if ($allowedTables !== '*') {
+                $this->outputLine('Allowed tables: ' . $allowedTables . '</>');
+            }
         }
 
         if ($this->io->confirm('Continue?', true)) {
@@ -143,7 +150,8 @@ class CopyCommand extends AbstractCommand
             // Perform operation
             $dataHandler = GeneralUtility::makeInstance(DataHandler::class);
             $dataHandler->copyTree = self::DEPTH;
-            #$dataHandler->copyWhichTables = join(',', self::TABLES);
+            $dataHandler->bypassAccessCheckForRecords = true;
+            $dataHandler->copyWhichTables = $allowedTables;
             $dataHandler->start([], $cmd, $GLOBALS['BE_USER']);
             $dataHandler->process_cmdmap();
 
