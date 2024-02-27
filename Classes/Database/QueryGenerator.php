@@ -6,6 +6,7 @@ namespace Kitzberger\CliToolbox\Database;
 
 use TYPO3\CMS\Core\Database\ConnectionPool;
 use TYPO3\CMS\Core\Database\Query\Restriction\DeletedRestriction;
+use TYPO3\CMS\Core\Information\Typo3Version;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 
 /**
@@ -49,7 +50,11 @@ class QueryGenerator
                 )
                 ->orderBy('uid');
 
-            $statement = $queryBuilder->executeQuery();
+            if ((GeneralUtility::makeInstance(Typo3Version::class))->getMajorVersion() == 10) {
+                $statement = $queryBuilder->execute();
+            } else {
+                $statement = $queryBuilder->executeQuery();
+            }
             while ($row = $statement->fetchAssociative()) {
                 if ($begin <= 0) {
                     $theList .= ',' . $row['uid'];
