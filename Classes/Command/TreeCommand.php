@@ -50,6 +50,14 @@ class TreeCommand extends AbstractCommand
         );
 
         $this->addOption(
+            'languages',
+            null,
+            InputOption::VALUE_OPTIONAL,
+            'Comma separated list of sys_language_uids',
+            '0'
+        );
+
+        $this->addOption(
             'separator',
             null,
             InputOption::VALUE_OPTIONAL,
@@ -71,6 +79,7 @@ class TreeCommand extends AbstractCommand
         $root = $input->getArgument('root');
         $depth = $input->getOption('depth');
         $table = $input->getOption('table');
+        $languages = GeneralUtility::intExplode(',', $input->getOption('languages'), true);
         $separator = $input->getOption('separator');
 
         if (!in_array($table, array_keys(self::PARENT_FIELDS))) {
@@ -99,9 +108,13 @@ class TreeCommand extends AbstractCommand
         }
 
         $output->writeln('Determining ' . $table . ' tree of root id: ' . $root, OutputInterface::VERBOSITY_VERBOSE);
+        $output->writeln(
+            sprintf('Language restriction: %s', empty($languages) ? 'none' : join(', ', $languages)),
+            OutputInterface::VERBOSITY_VERBOSE
+        );
 
         $queryGenerator = GeneralUtility::makeInstance(QueryGenerator::class);
-        $pidList = $queryGenerator->getTreeList($root, $depth, 0, $table, self::PARENT_FIELDS[$table]);
+        $pidList = $queryGenerator->getTreeList($root, $depth, 0, $table, self::PARENT_FIELDS[$table], $languages);
 
         if ($separator !== ',') {
             switch ($separator) {
