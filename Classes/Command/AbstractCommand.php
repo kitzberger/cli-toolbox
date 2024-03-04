@@ -19,13 +19,7 @@ abstract class AbstractCommand extends Command implements LoggerAwareInterface
 {
     use LoggerAwareTrait;
 
-    /**
-     * Executes the command
-     *
-     * @param InputInterface $input
-     * @param OutputInterface $output
-     */
-    protected function execute(InputInterface $input, OutputInterface $output)
+    protected function execute(InputInterface $input, OutputInterface $output): int
     {
         $this->io = new SymfonyStyle($input, $output);
     }

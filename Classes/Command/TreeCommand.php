@@ -58,13 +58,7 @@ class TreeCommand extends AbstractCommand
         );
     }
 
-    /**
-     * Executes the command
-     *
-     * @param InputInterface $input
-     * @param OutputInterface $output
-     */
-    protected function execute(InputInterface $input, OutputInterface $output)
+    protected function execute(InputInterface $input, OutputInterface $output): int
     {
         $siteFinder = GeneralUtility::makeInstance(SiteFinder::class);
 
