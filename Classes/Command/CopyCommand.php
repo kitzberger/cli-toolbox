@@ -100,7 +100,6 @@ class CopyCommand extends AbstractCommand
             $beUser = BackendUtility::getRecord('be_users', $beUserOverride);
             if ($beUser) {
                 $GLOBALS['BE_USER']->user = $beUser;
-                $GLOBALS['BE_USER']->username = $beUser['username'];
             } else {
                 $output->writeln('<error>No user found with uid ' . $beUserOverride . '</>');
                 return self::FAILURE;
@@ -130,7 +129,7 @@ class CopyCommand extends AbstractCommand
         $this->outputLine(
             '<info>Running command as \'%s\' (%sadmin)</>',
             [
-                $GLOBALS['BE_USER']->username,
+                $GLOBALS['BE_USER']->user['username'],
                 $GLOBALS['BE_USER']->isAdmin() ? '' : 'no '
             ]
         );
