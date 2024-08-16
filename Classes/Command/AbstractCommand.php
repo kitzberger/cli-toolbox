@@ -22,6 +22,8 @@ abstract class AbstractCommand extends Command implements LoggerAwareInterface
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
         $this->io = new SymfonyStyle($input, $output);
+
+        return self::FAILURE;
     }
 
     /**

@@ -77,7 +77,7 @@ class CopyCommand extends AbstractCommand
 
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
-        parent::execute($input, $output);
+        $this->io = new SymfonyStyle($input, $output);
 
         $table = $input->getOption('table');
         $source = $input->getOption('source');
