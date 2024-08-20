@@ -159,10 +159,10 @@ class CopyCommand extends AbstractCommand
                 }
                 return self::FAILURE;
             }
-        }
 
-        if ($this->action === 'copy') {
-            $this->outputLine('New uid: ' . $dataHandler->copyMappingArray_merged[$table][$source]);
+            if ($this->action === 'copy') {
+                $this->outputLine('New uid: ' . $dataHandler->copyMappingArray_merged[$table][$source]);
+            }
         }
 
         return self::SUCCESS;
