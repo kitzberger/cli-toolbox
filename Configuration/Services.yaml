@@ -15,7 +15,7 @@ services:
     tags:
       - name: 'console.command'
         command: 'toolbox:delete'
-        description: 'Recursive delete command, use with caution!'
+        description: 'DataHandler "delete" command, use with caution!'
         schedulable: false
 
   Kitzberger\CliToolbox\Command\MoveCommand:

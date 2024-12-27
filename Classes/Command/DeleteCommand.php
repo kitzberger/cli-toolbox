@@ -19,7 +19,7 @@ class DeleteCommand extends AbstractCommand
      */
     protected function configure()
     {
-        $this->setDescription('Recursive ' . $this->action . ' command, use with caution!');
+        $this->setDescription('DataHandler ' . $this->action . ' command, use with caution!');
 
         $this->addOption(
             'table',
