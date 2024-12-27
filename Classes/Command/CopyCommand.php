@@ -124,7 +124,7 @@ class CopyCommand extends AbstractCommand
         $this->outputLine(
             '<info>Running command as \'%s\' (%sadmin)</>',
             [
-                $GLOBALS['BE_USER']->username,
+                $GLOBALS['BE_USER']->getUserName(),
                 $GLOBALS['BE_USER']->isAdmin() ? '' : 'no '
             ]
         );
