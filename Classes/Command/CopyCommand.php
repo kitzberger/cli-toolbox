@@ -19,11 +19,6 @@ class CopyCommand extends AbstractCommand
     protected $action = 'copy';
 
     /**
-     * @var SymfonyStyle
-     */
-    protected $io = null;
-
-    /**
      * Configure the command by defining the name
      */
     protected function configure()

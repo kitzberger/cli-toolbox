@@ -12,11 +12,6 @@ use TYPO3\CMS\Core\Utility\GeneralUtility;
 
 class DeleteCommand extends AbstractCommand
 {
-    /**
-     * @var SymfonyStyle
-     */
-    protected $io = null;
-
     protected $action = 'delete';
 
     /**
