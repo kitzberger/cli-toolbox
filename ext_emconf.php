@@ -2,7 +2,7 @@
 
 $EM_CONF[$_EXTKEY] = [
     'title' => 'CLI toolbox',
-    'description' => '',
+    'description' => 'TYPO3 CLI toolbox: run copy/move/delete commands of DataHandler via CLI',
     'category' => 'system',
     'state' => 'stable',
     'clearCacheOnLoad' => true,
@@ -12,7 +12,7 @@ $EM_CONF[$_EXTKEY] = [
     'version' => '3.0.2',
     'constraints' => [
         'depends' => [
-            'typo3' => '10.4.0-12.4.99',
+            'typo3' => '10.4.0-13.4.99',
         ],
         'conflicts' => [
         ],

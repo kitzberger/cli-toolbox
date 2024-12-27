@@ -1,35 +1,39 @@
 <?php
+
 namespace Kitzberger\CliToolbox\Command;
 
-use Symfony\Component\Console\Input\InputArgument;
+use Kitzberger\CliToolbox\Database\QueryGenerator;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Style\SymfonyStyle;
-use TYPO3\CMS\Core\Database\QueryGenerator;
-use TYPO3\CMS\Core\Exception\SiteNotFoundException;
-use TYPO3\CMS\Core\Site\SiteFinder;
+use TYPO3\CMS\Core\DataHandling\DataHandler;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 
 class DeleteCommand extends AbstractCommand
 {
-    /**
-     * @var SymfonyStyle
-     */
-    protected $io = null;
+    protected $action = 'delete';
 
     /**
      * Configure the command by defining the name
      */
     protected function configure()
     {
-        $this->setDescription('Recursive delete command, use with caution!');
+        $this->setDescription('DataHandler ' . $this->action . ' command, use with caution!');
 
         $this->addOption(
-            'pid',
+            'table',
+            null,
+            InputOption::VALUE_OPTIONAL,
+            'Name of DB table?',
+            'pages'
+        );
+
+        $this->addOption(
+            'source',
             null,
             InputOption::VALUE_REQUIRED,
-            'Pid of pagetree to be deleted recursively',
+            'Uid of node to be ' . $this->action . 'd recursively',
         );
 
         $this->addOption(
@@ -44,10 +48,11 @@ class DeleteCommand extends AbstractCommand
     {
         $this->io = new SymfonyStyle($input, $output);
 
-        $pid = $input->getOption('pid');
+        $source = $input->getOption('source');
+        $table = $input->getOption('table');
 
-        if (empty($pid)) {
-            $this->outputLine('<error>Please specify pid!</>');
+        if (empty($source)) {
+            $this->outputLine('<error>Please specify source!</>');
             return self::FAILURE;
         }
 
@@ -58,52 +63,50 @@ class DeleteCommand extends AbstractCommand
             $this->outputLine('<bg=bright-blue>memory_limit (override!): ' . ini_get('memory_limit') . '</>');
         }
 
-        // Get all page ids
-        $queryGenerator = GeneralUtility::makeInstance(QueryGenerator::class);
-        $list = $queryGenerator->getTreeList($pid, 99);
+        $cmd = [
+            $table => [
+                $source => [
+                    $this->action => 1,
+                ],
+            ],
+        ];
 
-        $this->total = count(explode(',', $list));
-        $this->count = 0;
 
         if ($output->isVerbose()) {
+            // Get all page ids
+            $queryGenerator = GeneralUtility::makeInstance(QueryGenerator::class);
+            $list = $queryGenerator->getTreeList($source, 99, 0, $table);
+            $total = count(explode(',', $list));
+
             $this->outputLine('');
-            $this->outputLine('These are the pages that would be deleted:');
+            $this->outputLine('These are the records that would be ' . $this->action . 'd:');
             $this->outputLine($list);
             $this->outputLine('');
-            $this->outputLine('That\'s a total of ' . $this->total . ' pages!');
+            $this->outputLine('That\'s a total of ' . $total . ' ' . $table . ' records!');
+
+            $this->outputLine(print_r($cmd, true));
         }
 
         if ($this->io->confirm('Continue?', false)) {
-            $this->outputLine('NOT IMPLEMENTED YET !!');
-            // TODO: implement TYPO3 11 compatible recursive delete
-            #$this->deleteNodeRecursively($)
+            // Log in user!
+            $GLOBALS['BE_USER']->backendCheckLogin();
+
+            $dataHandler = GeneralUtility::makeInstance(DataHandler::class);
+            $dataHandler->start([], $cmd, $GLOBALS['BE_USER']);
+            $dataHandler->process_cmdmap();
+
+            // Any problems?
+            if (!empty($dataHandler->errorLog)) {
+                $this->io->writeln('<error>Errors while ' . $this->action . 'ing page tree!</>');
+                $this->logger->error('Errors while ' . $this->action . 'ing page tree!');
+                foreach ($dataHandler->errorLog as $log) {
+                    $this->io->writeln('<error>' . $log . '</>');
+                    $this->logger->error($log);
+                }
+                return self::FAILURE;
+            }
         }
 
         return self::SUCCESS;
-    }
-
-    /**
-     * Deletes a page and all of it's subpages and records on it.
-     *
-     * @param \TYPO3\CMS\Backend\Tree\Pagetree\PagetreeNode|int $node
-     */
-    private function deleteNodeRecursively($node)
-    {
-        if (is_integer($node)) {
-            $node = GeneralUtility::makeInstance(\TYPO3\CMS\Backend\Tree\Pagetree\PagetreeNode::class);
-            $node->setId($node);
-        }
-        if (is_object($node)) {
-            $childnodes = $this->dataProvider->getNodes($node);
-            foreach ($childnodes as $childNode) {
-                $this->deleteNodeRecursively($childNode);
-            }
-            \TYPO3\CMS\Backend\Tree\Pagetree\Commands::deleteNode($node);
-        } else {
-            throw new \Exception('Not a valid node!');
-        }
-
-        $this->count++;
-        echo 'Status: ' . $this->count . '/' . $this->total . " deleted\n";
     }
 }

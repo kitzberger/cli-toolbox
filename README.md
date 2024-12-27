@@ -27,7 +27,7 @@ bin/typo3 toolbox:tree 321 --table=sys_category
 (!) Use with caution and backup!
 
 ```bash
-bin/typo3 toolbox:delete --pid=123 [--memory-limit=512M]
+bin/typo3 toolbox:delete --source=123 [--table=pages] [--memory-limit=512M]
 ```
 
 ## Copy/move records

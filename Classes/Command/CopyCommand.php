@@ -19,11 +19,6 @@ class CopyCommand extends AbstractCommand
     protected $action = 'copy';
 
     /**
-     * @var SymfonyStyle
-     */
-    protected $io = null;
-
-    /**
      * Configure the command by defining the name
      */
     protected function configure()
@@ -124,7 +119,7 @@ class CopyCommand extends AbstractCommand
         $this->outputLine(
             '<info>Running command as \'%s\' (%sadmin)</>',
             [
-                $GLOBALS['BE_USER']->username,
+                $GLOBALS['BE_USER']->getUserName(),
                 $GLOBALS['BE_USER']->isAdmin() ? '' : 'no '
             ]
         );

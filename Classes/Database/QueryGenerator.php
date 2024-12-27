@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kitzberger\CliToolbox\Database;
 
+use TYPO3\CMS\Core\Database\Connection;
 use TYPO3\CMS\Core\Database\ConnectionPool;
 use TYPO3\CMS\Core\Database\Query\Restriction\DeletedRestriction;
 use TYPO3\CMS\Core\Information\Typo3Version;
@@ -46,7 +47,7 @@ class QueryGenerator
             $queryBuilder->select('uid')
                 ->from($table)
                 ->where(
-                    $queryBuilder->expr()->eq($parentField, $queryBuilder->createNamedParameter($id, \PDO::PARAM_INT)),
+                    $queryBuilder->expr()->eq($parentField, $queryBuilder->createNamedParameter($id, Connection::PARAM_INT)),
                 );
 
             if (!empty($languages)) {

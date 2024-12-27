@@ -1,12 +1,12 @@
 {
     "name": "kitzberger/cli-toolbox",
     "type": "typo3-cms-extension",
-    "description": "TYPO3 CLI toolbox",
+    "description": "TYPO3 CLI toolbox: run copy/move/delete commands of DataHandler via CLI'",
     "homepage": "https://github.com/kitzberger/cli-toolbox",
     "license": ["GPL-2.0+"],
     "keywords": ["TYPO3 CMS"],
     "require": {
-        "typo3/cms-core": "^10.4 || ^11.5 || ^12.4"
+        "typo3/cms-core": "^10.4 || ^11.5 || ^12.4 || ^13.4"
     },
     "autoload": {
         "psr-4": {
