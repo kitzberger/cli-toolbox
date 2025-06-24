@@ -31,3 +31,10 @@ services:
         command: 'toolbox:tree'
         description: 'Determine all uids of a pagetree of a given root uid'
         schedulable: false
+
+  Kitzberger\CliToolbox\Command\MoveFalFolderCommand:
+    tags:
+      - name: 'console.command'
+        command: 'toolbox:move-fal-folder'
+        description: 'Move a FAL folder and adjust file records'
+        schedulable: false
