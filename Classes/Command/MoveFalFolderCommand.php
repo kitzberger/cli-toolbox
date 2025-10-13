@@ -13,13 +13,8 @@ use TYPO3\CMS\Core\Resource\ResourceStorage;
 use TYPO3\CMS\Core\Resource\StorageRepository;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 
-class MoveFalFolderCommand extends CopyCommand
+class MoveFalFolderCommand extends AbstractCommand
 {
-    /**
-     * @var SymfonyStyle
-     */
-    protected $io = null;
-
     private StorageRepository $storageRepository;
 
     public function __construct(StorageRepository $storageRepository)
@@ -46,13 +41,6 @@ class MoveFalFolderCommand extends CopyCommand
             InputArgument::REQUIRED,
             'Combined identifier of target folder, e.g. 2:/different/folder',
         );
-
-        // $this->addOption(
-        //     'source',
-        //     null,
-        //     InputOption::VALUE_REQUIRED,
-        //     'Combined identifier of folder to be moved, e.g. 1:/folder-a',
-        // );
     }
 
     protected function execute(InputInterface $input, OutputInterface $output): int
@@ -98,7 +86,6 @@ class MoveFalFolderCommand extends CopyCommand
 
             $absSourcePath = realpath(Environment::getPublicPath() . '/' . $sourceStoragePath . $sourceFolder->getIdentifier());
             $absTargetPath = realpath(Environment::getPublicPath() . '/' . $targetStoragePath . $targetFolder->getIdentifier());
-
 
             if (is_dir($absSourcePath) && is_dir($absTargetPath)) {
                 // Ask user
