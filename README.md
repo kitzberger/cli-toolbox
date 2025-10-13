@@ -44,3 +44,14 @@ bin/typo3 toolbox:copy --table=tt_content --source=123 --target=-234
 # Move pages:123 to page:234
 bin/typo3 toolbox:move --source=123 --target=234
 ```
+
+## Move FAL folders across storages
+
+To move a folder from one storage (`fileadmin`) to another you can use this command to
+
+* Move all files within the given "source" to the given "target" folder
+* Recalculate the file hashes
+
+```bash
+bin/typo3 toolbox:move-fal-folder 1:/folder/subfolder/ 2:/different-folder/subfolder
+```
