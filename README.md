@@ -1,5 +1,13 @@
 # TYPO3 Extension cli_toolbox
 
+## Find records
+
+Find all records (of a given table, type and subtype) within the pagetree of a given root uid:
+
+```bash
+bin/typo3 toolbox:find 123 [type] [subtype] [--columns=uid,pid,...] [--order=pid,CType] [--table=tt_content] [--depth=10] [--languages=0] [--count]
+```
+
 ## Pagetree
 
 Determine uids of all children in the pagetree of a given root uid:
