@@ -19,9 +19,19 @@ use TYPO3\CMS\Core\Utility\GeneralUtility;
 
 class FindCommand extends AbstractCommand
 {
-    private const TABLES = [
-        'pages',
-        'tt_content'
+    private const EXTRA_COLUMNS = [
+        'pages' => [],
+        'tt_content' => [],
+        'tx_powermail_domain_model_form' => [],
+        'tx_powermail_domain_model_page' => [
+            'form',
+            'css',
+        ],
+        'tx_powermail_domain_model_field' => [
+            'page',
+            'mandatory',
+            'css',
+        ],
     ];
 
     /**
@@ -33,7 +43,7 @@ class FindCommand extends AbstractCommand
 
         $this->addArgument(
             'root',
-            InputArgument::REQUIRED,
+            InputArgument::OPTIONAL,
             'root node uid (or site identifier)',
         );
 
@@ -41,7 +51,6 @@ class FindCommand extends AbstractCommand
             'type',
             InputArgument::OPTIONAL,
             'Type? (e.g. text or list)',
-            'text'
         );
 
         $this->addArgument(
@@ -76,7 +85,7 @@ class FindCommand extends AbstractCommand
 
         $this->addOption(
             'count',
-            null,
+            'c',
             InputOption::VALUE_NONE,
             'Count instead of select?',
         );
@@ -90,10 +99,26 @@ class FindCommand extends AbstractCommand
         );
 
         $this->addOption(
+            'enable-columns',
+            'e',
+            InputOption::VALUE_NONE,
+            'Show enable columns?',
+            null
+        );
+
+        $this->addOption(
             'order',
             null,
             InputOption::VALUE_OPTIONAL,
             'Order by column(s)',
+            null
+        );
+
+        $this->addOption(
+            'limit',
+            'l',
+            InputOption::VALUE_OPTIONAL,
+            'Max. number of rows',
             null
         );
     }
@@ -109,41 +134,43 @@ class FindCommand extends AbstractCommand
         $table = $input->getOption('table');
         $count = $input->getOption('count');
         $columns = $input->getOption('columns');
+        $enableColumns = $input->getOption('enable-columns');
         $order = $input->getOption('order');
+        $limit = $input->getOption('limit');
         $languages = GeneralUtility::intExplode(',', $input->getOption('languages'), true);
 
-        if (!in_array($table, self::TABLES)) {
-            $output->writeln('<error>Table not supported yet!</>');
-            return self::FAILURE;
-        }
+        if (empty($root)) {
+            $pids = null;
+        } else {
+            // determining pids by looking at page tree of root parameter
+            if (!is_numeric($root)) {
+                $identifier = $root;
+                try {
+                    $site = $siteFinder->getSiteByIdentifier($identifier);
+                } catch (SiteNotFoundException $e) {
+                    $output->writeln('<error>No site found!</>');
+                    return self::FAILURE;
+                }
 
-        if (!is_numeric($root)) {
-            $identifier = $root;
-            try {
-                $site = $siteFinder->getSiteByIdentifier($identifier);
-            } catch (SiteNotFoundException $e) {
-                $output->writeln('<error>No site found!</>');
+                $root = $site->getRootPageId();
+                $output->writeln('Determining root pid of site: ' . $identifier, OutputInterface::VERBOSITY_VERBOSE);
+            }
+
+            if (!is_numeric($root)) {
+                $output->writeln('<error>Root node id should be numeric!</>');
                 return self::FAILURE;
             }
 
-            $root = $site->getRootPageId();
-            $output->writeln('Determining root pid of site: ' . $identifier, OutputInterface::VERBOSITY_VERBOSE);
+            $output->writeln('Determining page tree of root id: ' . $root, OutputInterface::VERBOSITY_VERBOSE);
+            $output->writeln(
+                sprintf('Language restriction: %s', empty($languages) ? 'none' : join(', ', $languages)),
+                OutputInterface::VERBOSITY_VERBOSE
+            );
+
+            $queryGenerator = GeneralUtility::makeInstance(QueryGenerator::class);
+            $pidList = $queryGenerator->getTreeList($root, $depth, 0, 'pages', 'pid', $languages);
+            $pids = GeneralUtility::intExplode(',', $pidList, true);
         }
-
-        if (!is_numeric($root)) {
-            $output->writeln('<error>Root node id should be numeric!</>');
-            return self::FAILURE;
-        }
-
-        $output->writeln('Determining page tree of root id: ' . $root, OutputInterface::VERBOSITY_VERBOSE);
-        $output->writeln(
-            sprintf('Language restriction: %s', empty($languages) ? 'none' : join(', ', $languages)),
-            OutputInterface::VERBOSITY_VERBOSE
-        );
-
-        $queryGenerator = GeneralUtility::makeInstance(QueryGenerator::class);
-        $pidList = $queryGenerator->getTreeList($root, $depth, 0, 'pages', 'pid', $languages);
-        $pids = GeneralUtility::intExplode(',', $pidList, true);
 
         $typeField = $GLOBALS['TCA'][$table]['ctrl']['type'] ?? null;
         $subtypeField = $GLOBALS['TCA'][$table]['types'][$type]['subtype_value_field'] ?? null;
@@ -158,16 +185,21 @@ class FindCommand extends AbstractCommand
                 ->from($table);
         } else {
             if (empty($columns)) {
-                $columns = array_filter([
+                $columns = [
                     'uid',
                     'pid',
                     $typeField ?? null,
                     $subtypeField ?? null,
                     $GLOBALS['TCA'][$table]['ctrl']['label'] ?? null,
-                ]);
+                ];
+                $columns = array_merge($columns, self::EXTRA_COLUMNS[$table] ?? []);
             } else {
                 $columns = GeneralUtility::trimExplode(',', $columns, true);
             }
+            if ($enableColumns) {
+                $columns = array_merge($columns, array_values($GLOBALS['TCA'][$table]['ctrl']['enablecolumns'] ?? []));
+            }
+            $columns = array_filter($columns);
             $query = $queryBuilder
                 ->select(...$columns)
                 ->from($table);
@@ -178,11 +210,20 @@ class FindCommand extends AbstractCommand
                     $query->addOrderBy($column);
                 }
             }
+
+            if ($limit) {
+                $query->setMaxResults($limit);
+            }
         }
 
-        $constraints = [
-            $queryBuilder->expr()->in('pid', $queryBuilder->createNamedParameter($pids, Connection::PARAM_INT_ARRAY))
-        ];
+        $constraints = [];
+
+        if ($pids === null) {
+            $output->writeln('Performing a global search!', OutputInterface::VERBOSITY_VERBOSE);
+        } else {
+            $output->writeln('Performing a search on ' . $root . ' only!', OutputInterface::VERBOSITY_VERBOSE);
+            $constraints[] = $queryBuilder->expr()->in('pid', $queryBuilder->createNamedParameter($pids, Connection::PARAM_INT_ARRAY));
+        }
 
         if ($typeField && $type) {
             $constraints[] = $queryBuilder->expr()->like($typeField, $queryBuilder->createNamedParameter($type));
@@ -199,7 +240,15 @@ class FindCommand extends AbstractCommand
             return self::SUCCESS;
         } else {
             $records = $query->executeQuery()->fetchAllAssociative();
-            $this->renderTable($output, $columns, $records);
+            if (count($records)) {
+                if (in_array('*', $columns)) {
+                    $columns = array_keys($records[0]);
+                }
+                $this->renderTable($output, $columns, $records);
+                $output->writeln(count($records) . ' records found.');
+            } else {
+                $output->warning('No records found.');
+            }
         }
 
         return self::SUCCESS;

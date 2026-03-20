@@ -5,8 +5,26 @@
 Find all records (of a given table, type and subtype) within the pagetree of a given root uid:
 
 ```bash
-bin/typo3 toolbox:find 123 [type] [subtype] [--columns=uid,pid,...] [--order=pid,CType] [--table=tt_content] [--depth=10] [--languages=0] [--count]
+bin/typo3 toolbox:find 123 [type] [subtype]
+
+# Find all powermail plugins (old)
+bin/typo3 toolbox:find 123 list 'powermail%'
+
+# Find all powermail plugins (new)
+bin/typo3 toolbox:find 123 'powermail%'
+
+# Global search for powermail fields of type 'captcha'
+bin/typo3 toolbox:find 0 captcha --table=tx_powermail_domain_model_field
 ```
+
+Other parameters:
+
+* `--table`, default: tt_content
+* `--columns`, comma separated list of field names, default: uid,pid,<type>,<title>
+* `--enable-columns/-e`, append enable fields to columns
+* `--order`, comma separated list of field names
+* `--count`, perform a COUNT instead of a SELECT
+* `--limit`
 
 ## Pagetree
 
