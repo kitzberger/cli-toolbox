@@ -247,7 +247,7 @@ class FindCommand extends AbstractCommand
                 $this->renderTable($output, $columns, $records);
                 $output->writeln(count($records) . ' records found.');
             } else {
-                $output->warning('No records found.');
+                $output->writeln('<warning>No records found.</warning>');
             }
         }
 
