@@ -254,10 +254,10 @@ class FindCommand extends AbstractCommand
             $constraints[] = $queryBuilder->expr()->in('pid', $queryBuilder->createNamedParameter($pids, Connection::PARAM_INT_ARRAY));
         }
 
-        if ($typeField && $type) {
+        if ($typeField && !is_null($type)) {
             $constraints[] = $queryBuilder->expr()->like($typeField, $queryBuilder->createNamedParameter($type));
         }
-        if ($subtypeField && $subtype) {
+        if ($subtypeField && !is_null($subtype)) {
             $constraints[] = $queryBuilder->expr()->like($subtypeField, $queryBuilder->createNamedParameter($subtype));
         }
 
