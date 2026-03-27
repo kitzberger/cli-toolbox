@@ -107,6 +107,14 @@ class FindCommand extends AbstractCommand
         );
 
         $this->addOption(
+            'group',
+            null,
+            InputOption::VALUE_OPTIONAL,
+            'Group by column(s)',
+            null
+        );
+
+        $this->addOption(
             'order',
             null,
             InputOption::VALUE_OPTIONAL,
@@ -135,6 +143,7 @@ class FindCommand extends AbstractCommand
         $count = $input->getOption('count');
         $columns = $input->getOption('columns');
         $enableColumns = $input->getOption('enable-columns');
+        $group = $input->getOption('group');
         $order = $input->getOption('order');
         $limit = $input->getOption('limit');
         $languages = GeneralUtility::intExplode(',', $input->getOption('languages'), true);
@@ -200,9 +209,22 @@ class FindCommand extends AbstractCommand
                 $columns = array_merge($columns, array_values($GLOBALS['TCA'][$table]['ctrl']['enablecolumns'] ?? []));
             }
             $columns = array_filter($columns);
-            $query = $queryBuilder
-                ->select(...$columns)
+            $query = $queryBuilder;
+
+            if ($group) {
+                $query->selectLiteral('COUNT(*)');
+            }
+
+            $query
+                ->addSelect(...$columns)
                 ->from($table);
+
+            if ($group) {
+                $group = GeneralUtility::trimExplode(',', $group, true);
+                foreach ($group as $column) {
+                    $query->addGroupBy($column);
+                }
+            }
 
             if ($order) {
                 $order = GeneralUtility::trimExplode(',', $order, true);
@@ -243,6 +265,9 @@ class FindCommand extends AbstractCommand
             if (count($records)) {
                 if (in_array('*', $columns)) {
                     $columns = array_keys($records[0]);
+                }
+                if ($group) {
+                    $columns = array_merge(['COUNT(*)'], $columns);
                 }
                 $this->renderTable($output, $columns, $records);
                 $output->writeln(count($records) . ' records found.');
