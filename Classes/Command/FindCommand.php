@@ -47,9 +47,10 @@ class FindCommand extends AbstractCommand
         $this->setDescription('Find all records within a pagetree of a given root uid');
 
         $this->addArgument(
-            'root',
+            'table',
             InputArgument::OPTIONAL,
-            'root node uid (or site identifier)',
+            'table',
+            'tt_content'
         );
 
         $this->addArgument(
@@ -65,19 +66,18 @@ class FindCommand extends AbstractCommand
         );
 
         $this->addOption(
+            'root',
+            0,
+            InputOption::VALUE_OPTIONAL,
+            'root node uid (or site identifier)',
+        );
+
+        $this->addOption(
             'depth',
             null,
             InputOption::VALUE_OPTIONAL,
             'Depth of recursive pagetree lookup',
             10
-        );
-
-        $this->addOption(
-            'table',
-            null,
-            InputOption::VALUE_OPTIONAL,
-            'Name of DB table?',
-            'tt_content'
         );
 
         $this->addOption(
@@ -112,7 +112,7 @@ class FindCommand extends AbstractCommand
         );
 
         $this->addOption(
-            'group',
+            'group-by',
             null,
             InputOption::VALUE_OPTIONAL,
             'Group by column(s)',
@@ -120,7 +120,7 @@ class FindCommand extends AbstractCommand
         );
 
         $this->addOption(
-            'order',
+            'order-by',
             null,
             InputOption::VALUE_OPTIONAL,
             'Order by column(s)',
@@ -140,16 +140,16 @@ class FindCommand extends AbstractCommand
     {
         $siteFinder = GeneralUtility::makeInstance(SiteFinder::class);
 
-        $root = $input->getArgument('root');
+        $table = $input->getArgument('table');
         $type = $input->getArgument('type');
         $subtype = $input->getArgument('subtype');
+        $root = $input->getOption('root');
         $depth = $input->getOption('depth');
-        $table = $input->getOption('table');
         $count = $input->getOption('count');
         $columns = $input->getOption('columns');
         $enableColumns = $input->getOption('enable-columns');
-        $group = $input->getOption('group');
-        $order = $input->getOption('order');
+        $group = $input->getOption('group-by');
+        $order = $input->getOption('order-by');
         $limit = $input->getOption('limit');
         $languages = GeneralUtility::intExplode(',', $input->getOption('languages'), true);
 
