@@ -34,6 +34,11 @@ class FindCommand extends AbstractCommand
         ],
     ];
 
+    private const TABLE_ALIASES = [
+        'news' => 'tx_news_domain_model_news',
+        'content' => 'tt_content',
+    ];
+
     /**
      * Configure the command by defining the name
      */
@@ -147,6 +152,8 @@ class FindCommand extends AbstractCommand
         $order = $input->getOption('order');
         $limit = $input->getOption('limit');
         $languages = GeneralUtility::intExplode(',', $input->getOption('languages'), true);
+
+        $table = self::TABLE_ALIASES[$table] ?? $table;
 
         if (empty($root)) {
             $pids = null;
