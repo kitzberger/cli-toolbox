@@ -134,6 +134,14 @@ class FindCommand extends AbstractCommand
             'Max. number of rows',
             null
         );
+
+        $this->addOption(
+            'extract',
+            null,
+            InputOption::VALUE_OPTIONAL,
+            'ExtractValue from XML field',
+            null
+        );
     }
 
     protected function execute(InputInterface $input, OutputInterface $output): int
@@ -151,6 +159,8 @@ class FindCommand extends AbstractCommand
         $group = $input->getOption('group-by');
         $order = $input->getOption('order-by');
         $limit = $input->getOption('limit');
+        $extract = $input->getOption('extract');
+
         $languages = GeneralUtility::intExplode(',', $input->getOption('languages'), true);
 
         $table = self::TABLE_ALIASES[$table] ?? $table;
@@ -236,6 +246,19 @@ class FindCommand extends AbstractCommand
                 ->addSelect(...$columns)
                 ->from($table);
 
+            if (!empty($extract)) {
+                $extractConfigs = GeneralUtility::trimExplode(',', $extract, true);
+                foreach ($extractConfigs as $extractConfig) {
+                    $extractConfig = GeneralUtility::trimExplode('/', $extractConfig, true);
+                    $query->addSelectLiteral(sprintf(
+                        'ExtractValue(%s, \'//T3FlexForms/data/sheet[@index="%s"]/language/field[@index="%s"]/value\')',
+                        $extractConfig[0] ?? 'pi_flexform',
+                        $extractConfig[1] ?? 'sDEF',
+                        $extractConfig[2] ?? ''
+                    ));
+                }
+            }
+
             if ($group) {
                 $group = GeneralUtility::trimExplode(',', $group, true);
                 foreach ($group as $column) {
@@ -285,6 +308,12 @@ class FindCommand extends AbstractCommand
                 }
                 if ($group) {
                     $columns = array_merge(['COUNT(*)'], $columns);
+                }
+                if (!empty($extract)) {
+                    $extractConfigs = GeneralUtility::trimExplode(',', $extract, true);
+                    foreach ($extractConfigs as $extractConfig) {
+                        $columns[] = $extractConfig;
+                    }
                 }
                 $this->renderTable($output, $columns, $records);
                 $output->writeln(count($records) . ' records found.');
