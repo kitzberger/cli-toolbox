@@ -155,6 +155,16 @@ class FindCommand extends AbstractCommand
 
         $table = self::TABLE_ALIASES[$table] ?? $table;
 
+        if (!isset($GLOBALS['TCA'][$table])) {
+            $output->writeln('<warning>Table ' . $table . ' doesn\'t exist!</>');
+
+            $possibleTableNames = array_keys($GLOBALS['TCA']);
+            $possibleTableNames = array_filter($possibleTableNames, fn($tableName) => preg_match('/' . $table . '/', $tableName));
+
+            $io = new SymfonyStyle($input, $output);
+            $table = $io->choice('Choose one of these', $possibleTableNames);
+        }
+
         if (empty($root)) {
             $pids = null;
         } else {
