@@ -1,4 +1,4 @@
-# TYPO3 Extension cli_toolbox
+# TYPO3 Extension cli\_toolbox
 
 ## Find records
 
@@ -22,6 +22,7 @@ Other parameters:
 * `--root`, root node (recursively resolved!)`
 * `--columns`, comma separated list of field names, default: uid,pid,<type>,<title>
 * `--enable-columns/-e`, append enable fields to columns
+* `--extract`, to use ExtractValue to extract fields from a XML fields (such as `pi\_flexform`)
 * `--group-by`, comma separated list of field names
 * `--order-by`, comma separated list of field names
 * `--count`, perform a COUNT instead of a SELECT
