@@ -212,6 +212,16 @@ class FindCommand extends AbstractCommand
         $subtypeField = $GLOBALS['TCA'][$table]['types'][$type]['subtype_value_field'] ?? null;
         #dd($type, $subtype, $typeField, $subtypeField, $columns);
 
+        if ($output->isVeryVerbose()) {
+            $output->writeln('- Table: ' . $table);
+            if ($typeField) {
+                $output->writeln('- ' . $typeField . ': ' . $type);
+            }
+            if ($subtypeField) {
+                $output->writeln('- ' . $subtypeField . ': ' . $subtype);
+            }
+        }
+
         $queryBuilder = GeneralUtility::makeInstance(ConnectionPool::class)->getQueryBuilderForTable($table);
         $queryBuilder->getRestrictions()->removeAll()->add(GeneralUtility::makeInstance(DeletedRestriction::class));
 
