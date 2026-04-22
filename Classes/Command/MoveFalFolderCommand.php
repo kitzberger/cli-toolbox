@@ -94,22 +94,34 @@ class MoveFalFolderCommand extends AbstractCommand
                 $this->io->text('- to this folder: ' . $absTargetPath);
 
                 if ($this->io->confirm('Move it?', false)) {
-                    // Step 1: Update sys_file records
+                    // Step 1: Update sys_file records (identifier + identifier_hash + folder_hash)
 
                     $this->io->text('- Updating sys_file records');
 
                     /** @var File[] $files */
                     $files = $sourceStorage->getFilesInFolder($sourceFolder, 0, 0, false, true);
+                    $db = GeneralUtility::makeInstance(ConnectionPool::class)->getConnectionForTable('sys_file');
                     foreach ($files as $file) {
                         $this->io->text('  - sys_file:' . $file->getUid());
 
                         $newIdentifier = str_replace($sourcePath, $targetPath, $file->getIdentifier());
-                        $db = GeneralUtility::makeInstance(ConnectionPool::class)->getConnectionForTable('sys_file');
+
+                        // Compute the hashes the way FAL does via the target storage's driver.
+                        // Without this, identifier_hash/folder_hash stay stale and FAL's indexer
+                        // won't find the row anymore, causing duplicate sys_file entries on the
+                        // next re-index.
+                        $newIdentifierHash = $targetStorage->hashFileIdentifier($newIdentifier);
+                        $newFolderHash     = $targetStorage->hashFileIdentifier(
+                            $this->parentFolderIdentifier($newIdentifier)
+                        );
+
                         $db->update(
                             'sys_file',
                             [
-                                'storage' => $targetStorage->getUid(),
-                                'identifier' => $newIdentifier,
+                                'storage'         => $targetStorage->getUid(),
+                                'identifier'      => $newIdentifier,
+                                'identifier_hash' => $newIdentifierHash,
+                                'folder_hash'     => $newFolderHash,
                             ],
                             [
                                 'uid' => $file->getUid(),
@@ -121,11 +133,6 @@ class MoveFalFolderCommand extends AbstractCommand
 
                     $this->io->text('- Moving files');
                     rename($absSourcePath, $absTargetPath);
-
-                    // Step 3: Fix file/folder hashes
-                    $this->io->text('- Updating hashes');
-                    // This triggers the storage driver to update each sys_file regarding its identifier_hash and folder_hash
-                    $files = $targetStorage->getFilesInFolder($targetFolder, 0, 0, false, true);
 
                     $this->io->success('Successfully moved files/folders!');
                 }
@@ -140,5 +147,20 @@ class MoveFalFolderCommand extends AbstractCommand
         }
 
         return self::SUCCESS;
+    }
+
+    /**
+     * Mirrors LocalDriver::getParentFolderIdentifierOfIdentifier():
+     * returns the identifier of the parent folder, with a trailing slash,
+     * always rooted at "/".
+     */
+    private function parentFolderIdentifier(string $fileIdentifier): string
+    {
+        $fileIdentifier = '/' . ltrim($fileIdentifier, '/');
+        $pos = strrpos($fileIdentifier, '/');
+        if ($pos === 0) {
+            return '/';
+        }
+        return substr($fileIdentifier, 0, $pos) . '/';
     }
 }
