@@ -171,8 +171,12 @@ class FindCommand extends AbstractCommand
             $possibleTableNames = array_keys($GLOBALS['TCA']);
             $possibleTableNames = array_filter($possibleTableNames, fn($tableName) => preg_match('/' . $table . '/', $tableName));
 
-            $io = new SymfonyStyle($input, $output);
-            $table = $io->choice('Choose one of these', $possibleTableNames);
+            if (count($possibleTableNames)) {
+                $io = new SymfonyStyle($input, $output);
+                $table = $io->choice('Choose one of these', $possibleTableNames);
+            } else {
+                return self::FAILURE;
+            }
         }
 
         if (empty($root)) {
