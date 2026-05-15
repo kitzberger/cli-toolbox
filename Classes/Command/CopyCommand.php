@@ -2,14 +2,11 @@
 
 namespace Kitzberger\CliToolbox\Command;
 
-use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Style\SymfonyStyle;
-use TYPO3\CMS\Backend\Utility\BackendUtility;
 use TYPO3\CMS\Core\DataHandling\DataHandler;
-use TYPO3\CMS\Core\Utility\ExtensionManagementUtility;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 
 class CopyCommand extends AbstractCommand
@@ -103,10 +100,11 @@ class CopyCommand extends AbstractCommand
         if ($this->io->confirm('Continue?', true)) {
             // Prevent hiding and prepending "Copy of" to copied records
             $GLOBALS['BE_USER']->uc['neverHideAtCopy'] = true;
+            // Set recursive copy depth on the BE_USER
+            $GLOBALS['BE_USER']->uc['copyLevels'] = self::DEPTH;
 
             // Perform operation
             $dataHandler = GeneralUtility::makeInstance(DataHandler::class);
-            $dataHandler->copyTree = self::DEPTH;
             $dataHandler->bypassAccessCheckForRecords = true;
             $dataHandler->start([], $cmd, $GLOBALS['BE_USER']);
             $dataHandler->process_cmdmap();
