@@ -101,9 +101,8 @@ class CopyCommand extends AbstractCommand
         }
 
         if ($this->io->confirm('Continue?', true)) {
-            // Make sure result is pretty ;-)
-            ExtensionManagementUtility::addPageTSConfig('TCEMAIN.table.' . $table . '.disableHideAtCopy = 1');
-            ExtensionManagementUtility::addPageTSConfig('TCEMAIN.table.' . $table . '.disablePrependAtCopy = 1');
+            // Prevent hiding and prepending "Copy of" to copied records
+            $GLOBALS['BE_USER']->uc['neverHideAtCopy'] = true;
 
             // Perform operation
             $dataHandler = GeneralUtility::makeInstance(DataHandler::class);
