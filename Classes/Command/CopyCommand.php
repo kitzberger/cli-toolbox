@@ -48,13 +48,6 @@ class CopyCommand extends AbstractCommand
         );
 
         $this->addOption(
-            'be-user',
-            null,
-            InputOption::VALUE_OPTIONAL,
-            'uid of be_user that performs this operation',
-        );
-
-        $this->addOption(
             'allowed-tables',
             null,
             InputOption::VALUE_OPTIONAL,
@@ -82,18 +75,6 @@ class CopyCommand extends AbstractCommand
         if (empty($source) || empty($target)) {
             $this->outputLine('<error>Please specify source and target!</>');
             return self::FAILURE;
-        }
-
-        $beUserOverride = $input->getOption('be-user');
-        if ($beUserOverride) {
-            $beUser = BackendUtility::getRecord('be_users', $beUserOverride);
-            if ($beUser) {
-                $GLOBALS['BE_USER']->user = $beUser;
-                $GLOBALS['BE_USER']->username = $beUser['username'];
-            } else {
-                $output->writeln('<error>No user found with uid ' . $beUserOverride . '</>');
-                return self::FAILURE;
-            }
         }
 
         $this->outputLine('memory_limit: ' . ini_get('memory_limit') . '</>');

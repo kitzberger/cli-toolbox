@@ -64,7 +64,7 @@ See [TYPO3 datahandler](https://docs.typo3.org/typo3cms/CoreApiReference/ApiOver
 
 ```bash
 # Copy tt_content:123 to page:234
-bin/typo3 toolbox:copy --table=tt_content --source=123 --target=234 [--be-user=1] [--memory-limit=512M]
+bin/typo3 toolbox:copy --table=tt_content --source=123 --target=234 [--memory-limit=512M]
 
 # Copy tt_content:123 right behind tt_content:-234
 bin/typo3 toolbox:copy --table=tt_content --source=123 --target=-234
