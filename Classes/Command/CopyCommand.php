@@ -48,14 +48,6 @@ class CopyCommand extends AbstractCommand
         );
 
         $this->addOption(
-            'allowed-tables',
-            null,
-            InputOption::VALUE_OPTIONAL,
-            'Allowed DB table?',
-            '*'
-        );
-
-        $this->addOption(
             'memory-limit',
             null,
             InputOption::VALUE_OPTIONAL,
@@ -70,7 +62,6 @@ class CopyCommand extends AbstractCommand
         $table = $input->getOption('table');
         $source = $input->getOption('source');
         $target = $input->getOption('target');
-        $allowedTables = $input->getOption('allowed-tables');
 
         if (empty($source) || empty($target)) {
             $this->outputLine('<error>Please specify source and target!</>');
@@ -107,9 +98,6 @@ class CopyCommand extends AbstractCommand
 
         if ($output->isVerbose()) {
             $this->outputLine(print_r($cmd, true));
-            if ($allowedTables !== '*') {
-                $this->outputLine('Allowed tables: ' . $allowedTables . '</>');
-            }
         }
 
         if ($this->io->confirm('Continue?', true)) {
@@ -121,7 +109,6 @@ class CopyCommand extends AbstractCommand
             $dataHandler = GeneralUtility::makeInstance(DataHandler::class);
             $dataHandler->copyTree = self::DEPTH;
             $dataHandler->bypassAccessCheckForRecords = true;
-            $dataHandler->copyWhichTables = $allowedTables;
             $dataHandler->start([], $cmd, $GLOBALS['BE_USER']);
             $dataHandler->process_cmdmap();
 
