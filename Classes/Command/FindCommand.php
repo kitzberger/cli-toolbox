@@ -112,6 +112,14 @@ class FindCommand extends AbstractCommand
         );
 
         $this->addOption(
+            'online-only',
+            'o',
+            InputOption::VALUE_NONE,
+            'Show only online records?',
+            null
+        );
+
+        $this->addOption(
             'group-by',
             null,
             InputOption::VALUE_OPTIONAL,
@@ -156,6 +164,7 @@ class FindCommand extends AbstractCommand
         $count = $input->getOption('count');
         $columns = $input->getOption('columns');
         $enableColumns = $input->getOption('enable-columns');
+        $onlineOnly = $input->getOption('online-only');
         $group = $input->getOption('group-by');
         $order = $input->getOption('order-by');
         $limit = $input->getOption('limit');
@@ -227,7 +236,9 @@ class FindCommand extends AbstractCommand
         }
 
         $queryBuilder = GeneralUtility::makeInstance(ConnectionPool::class)->getQueryBuilderForTable($table);
-        $queryBuilder->getRestrictions()->removeAll()->add(GeneralUtility::makeInstance(DeletedRestriction::class));
+        if ($onlineOnly === false) {
+            $queryBuilder->getRestrictions()->removeAll()->add(GeneralUtility::makeInstance(DeletedRestriction::class));
+        }
 
         if ($count) {
             $query = $queryBuilder
@@ -250,10 +261,30 @@ class FindCommand extends AbstractCommand
                 $columns = array_merge($columns, array_values($GLOBALS['TCA'][$table]['ctrl']['enablecolumns'] ?? []));
             }
             $columns = array_filter($columns);
+            $columns = array_map(fn($item) => $table . '.' . $item, $columns);
+
             $query = $queryBuilder;
 
             if ($group) {
                 $query->selectLiteral('COUNT(*)');
+            }
+
+            if ($onlineOnly) {
+                $columns[] = 'parentPage.title AS parentPageTitle';
+                $columns[] = 'parentPage.hidden AS parentPageHidden';
+                $columns[] = 'parentPage.deleted AS parentPageDeleted';
+                $columns[] = 'parentPage.starttime AS parentPageStarttime';
+                $columns[] = 'parentPage.endtime AS parentPageEndtime';
+                $query->join(
+                    $table,
+                    'pages',
+                    'parentPage',
+                    $queryBuilder->expr()->and(
+                        $queryBuilder->expr()->eq('parentPage.uid', $queryBuilder->quoteIdentifier($table . '.pid')),
+                        #$queryBuilder->expr()->eq('parentPage.deleted', 0),
+                        #$queryBuilder->expr()->eq('parentPage.hidden', 0),
+                    )
+                );
             }
 
             $query
@@ -266,7 +297,7 @@ class FindCommand extends AbstractCommand
                     $extractConfig = GeneralUtility::trimExplode('/', $extractConfig, true);
                     $query->addSelectLiteral(sprintf(
                         'ExtractValue(%s, \'//T3FlexForms/data/sheet[@index="%s"]/language/field[@index="%s"]/value\')',
-                        $extractConfig[0] ?? 'pi_flexform',
+                        $table . '.' . ($extractConfig[0] ?? 'pi_flexform'),
                         $extractConfig[1] ?? 'sDEF',
                         $extractConfig[2] ?? ''
                     ));
@@ -298,7 +329,7 @@ class FindCommand extends AbstractCommand
             $output->writeln('Performing a global search!', OutputInterface::VERBOSITY_VERBOSE);
         } else {
             $output->writeln('Performing a search on ' . $root . ' only!', OutputInterface::VERBOSITY_VERBOSE);
-            $constraints[] = $queryBuilder->expr()->in('pid', $queryBuilder->createNamedParameter($pids, Connection::PARAM_INT_ARRAY));
+            $constraints[] = $queryBuilder->expr()->in($table . '.pid', $queryBuilder->createNamedParameter($pids, Connection::PARAM_INT_ARRAY));
         }
 
         if ($typeField && !is_null($type)) {
@@ -329,6 +360,8 @@ class FindCommand extends AbstractCommand
                         $columns[] = $extractConfig;
                     }
                 }
+                $columns = array_map(fn($item) => str_replace($table . '.', '', $item), $columns);
+                $columns = array_map(fn($item) => preg_replace('/ AS parentPage.*/', '', $item), $columns);
                 $this->renderTable($output, $columns, $records);
                 $output->writeln(count($records) . ' records found.');
             } else {
