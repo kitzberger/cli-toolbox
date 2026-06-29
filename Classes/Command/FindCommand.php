@@ -271,10 +271,13 @@ class FindCommand extends AbstractCommand
 
             if ($onlineOnly) {
                 $columns[] = 'parentPage.title AS parentPageTitle';
-                $columns[] = 'parentPage.hidden AS parentPageHidden';
-                $columns[] = 'parentPage.deleted AS parentPageDeleted';
-                $columns[] = 'parentPage.starttime AS parentPageStarttime';
-                $columns[] = 'parentPage.endtime AS parentPageEndtime';
+                if ($enableColumns) {
+                    $columns[] = 'parentPage.hidden AS parentPageHidden';
+                    $columns[] = 'parentPage.deleted AS parentPageDeleted';
+                    $columns[] = 'parentPage.starttime AS parentPageStarttime';
+                    $columns[] = 'parentPage.endtime AS parentPageEndtime';
+                    $columns[] = 'parentPage.fe_group AS parentPageFegroup';
+                }
                 $query->join(
                     $table,
                     'pages',
