@@ -120,6 +120,14 @@ class FindCommand extends AbstractCommand
         );
 
         $this->addOption(
+            'url',
+            'u',
+            InputOption::VALUE_NONE,
+            'Render frontend URL as column?',
+            null
+        );
+
+        $this->addOption(
             'group-by',
             null,
             InputOption::VALUE_OPTIONAL,
@@ -164,6 +172,7 @@ class FindCommand extends AbstractCommand
         $count = $input->getOption('count');
         $columns = $input->getOption('columns');
         $enableColumns = $input->getOption('enable-columns');
+        $addUrlColumn = $input->getOption('url');
         $onlineOnly = $input->getOption('online-only');
         $group = $input->getOption('group-by');
         $order = $input->getOption('order-by');
@@ -365,6 +374,14 @@ class FindCommand extends AbstractCommand
                 }
                 $columns = array_map(fn($item) => str_replace($table . '.', '', $item), $columns);
                 $columns = array_map(fn($item) => preg_replace('/ AS parentPage.*/', '', $item), $columns);
+                if ($addUrlColumn) {
+                    $columns[] = 'url';
+                    foreach ($records as &$record) {
+                        $record['url'] = $this->typolink(
+                            $table=='pages' ? $record['uid'] : $record['pid']
+                        );
+                    }
+                }
                 $this->renderTable($output, $columns, $records);
                 $output->writeln(count($records) . ' records found.');
             } else {
@@ -383,5 +400,14 @@ class FindCommand extends AbstractCommand
             ->setRows($rows)
         ;
         $table->render();
+    }
+
+    /**
+     * For rendering typolinks in PHP
+     */
+    protected function typolink($pageId, $arguments = [])
+    {
+        $site = GeneralUtility::makeInstance(SiteFinder::class)->getSiteByPageId($pageId);
+        return $site->getRouter()->generateUri($pageId, $arguments);
     }
 }
