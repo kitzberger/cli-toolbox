@@ -14,6 +14,7 @@ use TYPO3\CMS\Core\Database\Connection;
 use TYPO3\CMS\Core\Database\ConnectionPool;
 use TYPO3\CMS\Core\Database\Query\Restriction\DeletedRestriction;
 use TYPO3\CMS\Core\Exception\SiteNotFoundException;
+use TYPO3\CMS\Core\Routing\InvalidRouteArgumentsException;
 use TYPO3\CMS\Core\Site\SiteFinder;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 
@@ -405,9 +406,20 @@ class FindCommand extends AbstractCommand
     /**
      * For rendering typolinks in PHP
      */
-    protected function typolink($pageId, $arguments = [])
+    protected function typolink($pageId, $arguments = []): string
     {
-        $site = GeneralUtility::makeInstance(SiteFinder::class)->getSiteByPageId($pageId);
-        return $site->getRouter()->generateUri($pageId, $arguments);
+        try {
+            $site = GeneralUtility::makeInstance(SiteFinder::class)->getSiteByPageId($pageId);
+        } catch (SiteNotFoundException $e) {
+            return $e->getMessage();
+        }
+
+        try {
+            $url = $site->getRouter()->generateUri($pageId, $arguments);
+        } catch (InvalidRouteArgumentsException $e) {
+            return $e->getMessage();
+        }
+
+        return $url;
     }
 }
