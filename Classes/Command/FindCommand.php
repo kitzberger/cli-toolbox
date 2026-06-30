@@ -357,10 +357,10 @@ class FindCommand extends AbstractCommand
         }
 
         if ($typeField && !is_null($type)) {
-            $constraints[] = $queryBuilder->expr()->like($typeField, $queryBuilder->createNamedParameter($type));
+            $constraints[] = $queryBuilder->expr()->like($table . '.' . $typeField, $queryBuilder->createNamedParameter($type));
         }
         if ($subtypeField && !is_null($subtype)) {
-            $constraints[] = $queryBuilder->expr()->like($subtypeField, $queryBuilder->createNamedParameter($subtype));
+            $constraints[] = $queryBuilder->expr()->like($table . '.' . $subtypeField, $queryBuilder->createNamedParameter($subtype));
         }
 
         $query->where(...$constraints);
