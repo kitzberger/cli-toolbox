@@ -254,6 +254,14 @@ class FindCommand extends AbstractCommand
             $query = $queryBuilder
                 ->count('*')
                 ->from($table);
+            if ($onlineOnly) {
+                $query->join(
+                    $table,
+                    'pages',
+                    'parentPage',
+                    $queryBuilder->expr()->eq('parentPage.uid', $queryBuilder->quoteIdentifier($table . '.pid'))
+                );
+            }
         } else {
             if (empty($columns)) {
                 $columns = [
@@ -292,11 +300,7 @@ class FindCommand extends AbstractCommand
                     $table,
                     'pages',
                     'parentPage',
-                    $queryBuilder->expr()->and(
-                        $queryBuilder->expr()->eq('parentPage.uid', $queryBuilder->quoteIdentifier($table . '.pid')),
-                        #$queryBuilder->expr()->eq('parentPage.deleted', 0),
-                        #$queryBuilder->expr()->eq('parentPage.hidden', 0),
-                    )
+                    $queryBuilder->expr()->eq('parentPage.uid', $queryBuilder->quoteIdentifier($table . '.pid'))
                 );
             }
 
