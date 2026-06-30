@@ -376,7 +376,7 @@ class FindCommand extends AbstractCommand
                 $columns = array_map(fn($item) => str_replace($table . '.', '', $item), $columns);
                 $columns = array_map(fn($item) => preg_replace('/ AS parentPage.*/', '', $item), $columns);
                 if ($addUrlColumn) {
-                    $columns[] = 'url';
+                    $columns[] = '[URL]';
                     foreach ($records as &$record) {
                         $record['url'] = $this->typolink(
                             $table=='pages' ? $record['uid'] : $record['pid']
