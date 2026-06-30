@@ -320,14 +320,14 @@ class FindCommand extends AbstractCommand
             if ($group) {
                 $group = GeneralUtility::trimExplode(',', $group, true);
                 foreach ($group as $column) {
-                    $query->addGroupBy($column);
+                    $query->addGroupBy($table . '.' . $column);
                 }
             }
 
             if ($order) {
                 $order = GeneralUtility::trimExplode(',', $order, true);
                 foreach ($order as $column) {
-                    $query->addOrderBy($column);
+                    $query->addOrderBy($table . '.' . $column);
                 }
             }
 
