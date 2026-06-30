@@ -361,7 +361,7 @@ class FindCommand extends AbstractCommand
         } else {
             $records = $query->executeQuery()->fetchAllAssociative();
             if (count($records)) {
-                if (in_array('*', $columns)) {
+                if (in_array($table . '.*', $columns)) {
                     $columns = array_keys($records[0]);
                 }
                 if ($group) {
