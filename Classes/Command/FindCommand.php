@@ -274,8 +274,12 @@ class FindCommand extends AbstractCommand
                 $columns = array_merge($columns, self::EXTRA_COLUMNS[$table] ?? []);
             } else {
                 $columns = GeneralUtility::trimExplode(',', $columns, true);
-                if ($onlineOnly && !in_array('pid', $columns)) {
-                    $columns[] = 'pid'; // necessary to render typolinks
+                if ($addUrlColumn) {
+                    if ($table === 'pages' && !in_array('uid', $columns)) {
+                        $columns[] = 'uid'; // necessary to render typolinks
+                    } elseif (!in_array('pid', $columns)) {
+                        $columns[] = 'pid'; // necessary to render typolinks
+                    }
                 }
             }
             if ($enableColumns) {
