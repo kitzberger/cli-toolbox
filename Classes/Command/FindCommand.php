@@ -14,6 +14,7 @@ use TYPO3\CMS\Core\Database\Connection;
 use TYPO3\CMS\Core\Database\ConnectionPool;
 use TYPO3\CMS\Core\Database\Query\Restriction\DeletedRestriction;
 use TYPO3\CMS\Core\Exception\SiteNotFoundException;
+use TYPO3\CMS\Core\Routing\InvalidRouteArgumentsException;
 use TYPO3\CMS\Core\Site\SiteFinder;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 
@@ -112,6 +113,22 @@ class FindCommand extends AbstractCommand
         );
 
         $this->addOption(
+            'online-only',
+            'o',
+            InputOption::VALUE_NONE,
+            'Show only online records?',
+            null
+        );
+
+        $this->addOption(
+            'url',
+            'u',
+            InputOption::VALUE_NONE,
+            'Render frontend URL as column?',
+            null
+        );
+
+        $this->addOption(
             'group-by',
             null,
             InputOption::VALUE_OPTIONAL,
@@ -156,6 +173,8 @@ class FindCommand extends AbstractCommand
         $count = $input->getOption('count');
         $columns = $input->getOption('columns');
         $enableColumns = $input->getOption('enable-columns');
+        $addUrlColumn = $input->getOption('url');
+        $onlineOnly = $input->getOption('online-only');
         $group = $input->getOption('group-by');
         $order = $input->getOption('order-by');
         $limit = $input->getOption('limit');
@@ -227,12 +246,22 @@ class FindCommand extends AbstractCommand
         }
 
         $queryBuilder = GeneralUtility::makeInstance(ConnectionPool::class)->getQueryBuilderForTable($table);
-        $queryBuilder->getRestrictions()->removeAll()->add(GeneralUtility::makeInstance(DeletedRestriction::class));
+        if ($onlineOnly === false) {
+            $queryBuilder->getRestrictions()->removeAll()->add(GeneralUtility::makeInstance(DeletedRestriction::class));
+        }
 
         if ($count) {
             $query = $queryBuilder
                 ->count('*')
                 ->from($table);
+            if ($onlineOnly) {
+                $query->join(
+                    $table,
+                    'pages',
+                    'parentPage',
+                    $queryBuilder->expr()->eq('parentPage.uid', $queryBuilder->quoteIdentifier($table . '.pid'))
+                );
+            }
         } else {
             if (empty($columns)) {
                 $columns = [
@@ -245,15 +274,41 @@ class FindCommand extends AbstractCommand
                 $columns = array_merge($columns, self::EXTRA_COLUMNS[$table] ?? []);
             } else {
                 $columns = GeneralUtility::trimExplode(',', $columns, true);
+                if ($addUrlColumn) {
+                    if ($table === 'pages' && !in_array('uid', $columns)) {
+                        $columns[] = 'uid'; // necessary to render typolinks
+                    } elseif (!in_array('pid', $columns)) {
+                        $columns[] = 'pid'; // necessary to render typolinks
+                    }
+                }
             }
             if ($enableColumns) {
                 $columns = array_merge($columns, array_values($GLOBALS['TCA'][$table]['ctrl']['enablecolumns'] ?? []));
             }
             $columns = array_filter($columns);
+            $columns = array_map(fn($item) => $table . '.' . $item, $columns);
+
             $query = $queryBuilder;
 
             if ($group) {
                 $query->selectLiteral('COUNT(*)');
+            }
+
+            if ($onlineOnly) {
+                $columns[] = 'parentPage.title AS parentPageTitle';
+                if ($enableColumns) {
+                    $columns[] = 'parentPage.hidden AS parentPageHidden';
+                    $columns[] = 'parentPage.deleted AS parentPageDeleted';
+                    $columns[] = 'parentPage.starttime AS parentPageStarttime';
+                    $columns[] = 'parentPage.endtime AS parentPageEndtime';
+                    $columns[] = 'parentPage.fe_group AS parentPageFegroup';
+                }
+                $query->join(
+                    $table,
+                    'pages',
+                    'parentPage',
+                    $queryBuilder->expr()->eq('parentPage.uid', $queryBuilder->quoteIdentifier($table . '.pid'))
+                );
             }
 
             $query
@@ -266,7 +321,7 @@ class FindCommand extends AbstractCommand
                     $extractConfig = GeneralUtility::trimExplode('/', $extractConfig, true);
                     $query->addSelectLiteral(sprintf(
                         'ExtractValue(%s, \'//T3FlexForms/data/sheet[@index="%s"]/language/field[@index="%s"]/value\')',
-                        $extractConfig[0] ?? 'pi_flexform',
+                        $table . '.' . ($extractConfig[0] ?? 'pi_flexform'),
                         $extractConfig[1] ?? 'sDEF',
                         $extractConfig[2] ?? ''
                     ));
@@ -276,14 +331,14 @@ class FindCommand extends AbstractCommand
             if ($group) {
                 $group = GeneralUtility::trimExplode(',', $group, true);
                 foreach ($group as $column) {
-                    $query->addGroupBy($column);
+                    $query->addGroupBy($table . '.' . $column);
                 }
             }
 
             if ($order) {
                 $order = GeneralUtility::trimExplode(',', $order, true);
                 foreach ($order as $column) {
-                    $query->addOrderBy($column);
+                    $query->addOrderBy($table . '.' . $column);
                 }
             }
 
@@ -298,17 +353,19 @@ class FindCommand extends AbstractCommand
             $output->writeln('Performing a global search!', OutputInterface::VERBOSITY_VERBOSE);
         } else {
             $output->writeln('Performing a search on ' . $root . ' only!', OutputInterface::VERBOSITY_VERBOSE);
-            $constraints[] = $queryBuilder->expr()->in('pid', $queryBuilder->createNamedParameter($pids, Connection::PARAM_INT_ARRAY));
+            $constraints[] = $queryBuilder->expr()->in($table . '.pid', $queryBuilder->createNamedParameter($pids, Connection::PARAM_INT_ARRAY));
         }
 
         if ($typeField && !is_null($type)) {
-            $constraints[] = $queryBuilder->expr()->like($typeField, $queryBuilder->createNamedParameter($type));
+            $constraints[] = $queryBuilder->expr()->like($table . '.' . $typeField, $queryBuilder->createNamedParameter($type));
         }
         if ($subtypeField && !is_null($subtype)) {
-            $constraints[] = $queryBuilder->expr()->like($subtypeField, $queryBuilder->createNamedParameter($subtype));
+            $constraints[] = $queryBuilder->expr()->like($table . '.' . $subtypeField, $queryBuilder->createNamedParameter($subtype));
         }
 
         $query->where(...$constraints);
+
+        $output->writeln($query->getSQL(), OutputInterface::VERBOSITY_VERY_VERBOSE);
 
         if ($count) {
             $number = $query->executeQuery()->fetchOne();
@@ -317,7 +374,7 @@ class FindCommand extends AbstractCommand
         } else {
             $records = $query->executeQuery()->fetchAllAssociative();
             if (count($records)) {
-                if (in_array('*', $columns)) {
+                if (in_array($table . '.*', $columns)) {
                     $columns = array_keys($records[0]);
                 }
                 if ($group) {
@@ -328,6 +385,17 @@ class FindCommand extends AbstractCommand
                     foreach ($extractConfigs as $extractConfig) {
                         $columns[] = $extractConfig;
                     }
+                }
+                $columns = array_map(fn($item) => str_replace($table . '.', '', $item), $columns);
+                $columns = array_map(fn($item) => preg_replace('/ AS parentPage.*/', '', $item), $columns);
+                if ($addUrlColumn) {
+                    $columns[] = '[URL]';
+                    foreach ($records as &$record) {
+                        $record['url'] = $this->typolink(
+                            $table === 'pages' ? $record['uid'] : $record['pid']
+                        );
+                    }
+                    unset($record);
                 }
                 $this->renderTable($output, $columns, $records);
                 $output->writeln(count($records) . ' records found.');
@@ -347,5 +415,25 @@ class FindCommand extends AbstractCommand
             ->setRows($rows)
         ;
         $table->render();
+    }
+
+    /**
+     * For rendering typolinks in PHP
+     */
+    protected function typolink($pageId, $arguments = []): string
+    {
+        try {
+            $site = GeneralUtility::makeInstance(SiteFinder::class)->getSiteByPageId($pageId);
+        } catch (SiteNotFoundException $e) {
+            return $e->getMessage();
+        }
+
+        try {
+            $url = $site->getRouter()->generateUri($pageId, $arguments);
+        } catch (InvalidRouteArgumentsException $e) {
+            return $e->getMessage();
+        }
+
+        return $url;
     }
 }
