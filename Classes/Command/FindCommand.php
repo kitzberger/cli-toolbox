@@ -274,6 +274,9 @@ class FindCommand extends AbstractCommand
                 $columns = array_merge($columns, self::EXTRA_COLUMNS[$table] ?? []);
             } else {
                 $columns = GeneralUtility::trimExplode(',', $columns, true);
+                if ($onlineOnly && !in_array('pid', $columns)) {
+                    $columns[] = 'pid'; // necessary to render typolinks
+                }
             }
             if ($enableColumns) {
                 $columns = array_merge($columns, array_values($GLOBALS['TCA'][$table]['ctrl']['enablecolumns'] ?? []));
