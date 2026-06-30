@@ -358,6 +358,8 @@ class FindCommand extends AbstractCommand
 
         $query->where(...$constraints);
 
+        $output->writeln($query->getSQL(), OutputInterface::VERBOSITY_VERY_VERBOSE);
+
         if ($count) {
             $number = $query->executeQuery()->fetchOne();
             $output->writeln($number);
