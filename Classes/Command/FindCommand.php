@@ -388,9 +388,10 @@ class FindCommand extends AbstractCommand
                     $columns[] = '[URL]';
                     foreach ($records as &$record) {
                         $record['url'] = $this->typolink(
-                            $table=='pages' ? $record['uid'] : $record['pid']
+                            $table === 'pages' ? $record['uid'] : $record['pid']
                         );
                     }
+                    unset($record);
                 }
                 $this->renderTable($output, $columns, $records);
                 $output->writeln(count($records) . ' records found.');
