@@ -113,6 +113,13 @@ class FindCommand extends AbstractCommand
         );
 
         $this->addOption(
+            'site-column',
+            's',
+            InputOption::VALUE_NONE,
+            'Add a "Site" column as first column showing each record\'s site identifier (sorted by site)',
+        );
+
+        $this->addOption(
             'online-only',
             'o',
             InputOption::VALUE_NONE,
@@ -159,6 +166,13 @@ class FindCommand extends AbstractCommand
             'ExtractValue from XML field, e.g. pi_flexform/sDEF/switchableControllerActions',
             null
         );
+
+        $this->addOption(
+            'where',
+            'w',
+            InputOption::VALUE_REQUIRED,
+            'Additional SQL-like WHERE clause, e.g. "sys_language_uid=0 AND doktype=254"',
+        );
     }
 
     protected function execute(InputInterface $input, OutputInterface $output): int
@@ -179,6 +193,8 @@ class FindCommand extends AbstractCommand
         $order = $input->getOption('order-by');
         $limit = $input->getOption('limit');
         $extract = $input->getOption('extract');
+        $siteColumn = $input->getOption('site-column');
+        $whereClause = $input->getOption('where');
 
         $languages = GeneralUtility::intExplode(',', $input->getOption('languages'), true);
 
@@ -365,6 +381,55 @@ class FindCommand extends AbstractCommand
 
         $query->where(...$constraints);
 
+        if (!empty($whereClause)) {
+            $conditions = $this->parseWhereConditions($whereClause);
+
+            if (empty($conditions)) {
+                throw new \InvalidArgumentException('Unparsable where clause: ' . $whereClause);
+            }
+
+            $andExpressions = [];
+            $orExpressions = [];
+
+            foreach ($conditions as $condition) {
+                $column = $table . '.' . $condition['column'];
+                $operator = strtoupper($condition['operator']);
+                $value = $condition['value'];
+
+                $expression = match ($operator) {
+                    '=', 'EQ' => $queryBuilder->expr()->eq($column, $queryBuilder->createNamedParameter($value)),
+                    '!=', '<>', 'NE' => $queryBuilder->expr()->neq($column, $queryBuilder->createNamedParameter($value)),
+                    'LIKE' => $queryBuilder->expr()->like($column, $queryBuilder->createNamedParameter($value)),
+                    'NOT LIKE' => $queryBuilder->expr()->notLike($column, $queryBuilder->createNamedParameter($value)),
+                    '>', 'GT' => $queryBuilder->expr()->gt($column, $queryBuilder->createNamedParameter($value)),
+                    '>=', 'GE' => $queryBuilder->expr()->gte($column, $queryBuilder->createNamedParameter($value)),
+                    '<', 'LT' => $queryBuilder->expr()->lt($column, $queryBuilder->createNamedParameter($value)),
+                    '<=', 'LE' => $queryBuilder->expr()->lte($column, $queryBuilder->createNamedParameter($value)),
+                    'IN' => $queryBuilder->expr()->in($column, $queryBuilder->createNamedParameter($value, Connection::PARAM_INT_ARRAY)),
+                    'NOT IN' => $queryBuilder->expr()->notIn($column, $queryBuilder->createNamedParameter($value, Connection::PARAM_INT_ARRAY)),
+                    'IS NULL' => $queryBuilder->expr()->isNull($column),
+                    'IS NOT NULL' => $queryBuilder->expr()->isNotNull($column),
+                    default => null,
+                };
+
+                if ($expression !== null) {
+                    if (strtoupper($condition['junction']) === 'OR') {
+                        $orExpressions[] = $expression;
+                    } else {
+                        $andExpressions[] = $expression;
+                    }
+                }
+            }
+
+            if (!empty($orExpressions)) {
+                $andExpressions[] = $queryBuilder->expr()->orX(...$orExpressions);
+            }
+
+            if (!empty($andExpressions)) {
+                $query->andWhere(...$andExpressions);
+            }
+        }
+
         $output->writeln($query->getSQL(), OutputInterface::VERBOSITY_VERY_VERBOSE);
 
         if ($count) {
@@ -394,6 +459,32 @@ class FindCommand extends AbstractCommand
                         $record['url'] = $this->typolink(
                             $table === 'pages' ? $record['uid'] : $record['pid']
                         );
+                    }
+                    unset($record);
+                }
+                if ($siteColumn) {
+                    $columns = array_merge(['Site'], $columns);
+
+                    $pidToSite = [];
+                    $uniquePids = array_unique(array_map(fn($record) => (int)($record['pid'] ?? 0), $records));
+                    foreach ($uniquePids as $pid) {
+                        try {
+                            $pidToSite[$pid] = $siteFinder->getSiteByPageId($pid)->getIdentifier();
+                        } catch (\Throwable $e) {
+                            $pidToSite[$pid] = 'n/a';
+                        }
+                    }
+
+                    foreach ($records as &$record) {
+                        $record['site'] = $pidToSite[(int)($record['pid'] ?? 0)] ?? 'n/a';
+                    }
+                    unset($record);
+
+                    usort($records, fn($a, $b) => strnatcasecmp($a['site'], $b['site']));
+
+                    foreach ($records as &$record) {
+                        $record = array_merge(['Site' => $record['site']], $record);
+                        unset($record['site']);
                     }
                     unset($record);
                 }
@@ -435,5 +526,85 @@ class FindCommand extends AbstractCommand
         }
 
         return $url;
+    }
+
+    /**
+     * Parse a SQL-like WHERE clause into an array of conditions.
+     *
+     * Each condition has: column, operator, value, junction (AND/OR).
+     * Respects quoted strings when splitting by AND/OR.
+     *
+     * @return array<array{column: string, operator: string, value: mixed, junction: string}>
+     */
+    private function parseWhereConditions(string $whereClause): array
+    {
+        $conditions = [];
+        $parts = preg_split('/\b(AND|OR)\b/i', $whereClause, -1, PREG_SPLIT_DELIM_CAPTURE | PREG_SPLIT_NO_EMPTY);
+
+        $currentJunction = 'AND';
+        $supportedOperators = ['NOT LIKE', 'IS NOT NULL', 'IS NULL', '>=', '<=', '!=', '<>', 'LIKE', 'NOT IN', 'IN', '>', '<', '='];
+
+        foreach ($parts as $part) {
+            $part = trim($part);
+            if ($part === '') {
+                continue;
+            }
+
+            $upperPart = strtoupper($part);
+            if ($upperPart === 'AND' || $upperPart === 'OR') {
+                $currentJunction = $upperPart;
+                continue;
+            }
+
+            foreach ($supportedOperators as $operator) {
+                // Matches operator surrounded by optional whitespace
+                $pattern = '/\s*' . preg_quote($operator, '/') . '\s*/';
+                if (preg_match($pattern, $part, $matches, PREG_OFFSET_CAPTURE)) {
+                    $column = trim(substr($part, 0, $matches[0][1]));
+                    $value = trim(substr($part, $matches[0][1] + strlen($matches[0][0])));
+
+                    $conditions[] = [
+                        'column' => $column,
+                        'operator' => $operator,
+                        'value' => $this->parseWhereValue($value),
+                        'junction' => $currentJunction,
+                    ];
+                    break;
+                }
+            }
+        }
+
+        return $conditions;
+    }
+
+    /**
+     * Parse a WHERE value into an appropriate PHP type.
+     *
+     * - 'NULL' (unquoted) → null
+     * - '1,2,3' (after stripping parentheses) → array of ints
+     * - 'string' (quoted) → unquoted string
+     * - numeric string → int
+     * - everything else → string
+     */
+    private function parseWhereValue(string $value): mixed
+    {
+        if (strtoupper($value) === 'NULL') {
+            return null;
+        }
+
+        if ($value[0] === '(' && $value[strlen($value) - 1] === ')') {
+            $inner = substr($value, 1, -1);
+            return array_map('intval', array_map('trim', explode(',', $inner)));
+        }
+
+        if (preg_match('/^(\'(.*)\'|"(.*))$/', $value, $matches)) {
+            return $matches[2] ?? $matches[3];
+        }
+
+        if (is_numeric($value)) {
+            return (int)$value;
+        }
+
+        return $value;
     }
 }
