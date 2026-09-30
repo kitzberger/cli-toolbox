@@ -75,6 +75,24 @@ bin/typo3 toolbox:copy --table=tt_content --source=123 --target=-234
 bin/typo3 toolbox:move --source=123 --target=234
 ```
 
+## Swap default language
+
+(!) Use with caution and backup!
+
+Swaps the default language (0) with a given translation language `L` for all
+records on a page. The translation in language `L` becomes the new default
+record, the former default is demoted to a translation of language `L`, and all
+remaining translations are repointed to the new default (`l10n_parent`,
+`l10n_source`). `l10n_diffsource` is emptied for all affected records.
+
+```bash
+# Dry-run: print the planned UPDATEs without executing them
+bin/typo3 toolbox:swap-language --table=tt_content --pid=123 --language=1 --dry-run
+
+# Perform the swap
+bin/typo3 toolbox:swap-language --table=tt_content --pid=123 --language=1
+```
+
 ## Move FAL folders across storages
 
 To move a folder from one storage (`fileadmin`) to another you can use this command to

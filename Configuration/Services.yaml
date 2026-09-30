@@ -45,3 +45,10 @@ services:
         command: 'toolbox:move-fal-folder'
         description: 'Move a FAL folder and adjust file records'
         schedulable: false
+
+  Kitzberger\CliToolbox\Command\SwapLanguageCommand:
+    tags:
+      - name: 'console.command'
+        command: 'toolbox:swap-language'
+        description: 'Swap the default language of records on a given page'
+        schedulable: false
