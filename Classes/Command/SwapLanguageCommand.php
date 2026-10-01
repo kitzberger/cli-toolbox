@@ -228,11 +228,6 @@ class SwapLanguageCommand extends AbstractCommand
             return self::SUCCESS;
         }
 
-        if (!$this->io->confirm('Apply these changes?', false)) {
-            $this->outputLine('Aborted.');
-            return self::SUCCESS;
-        }
-
         $connection->beginTransaction();
         try {
             foreach ($plan as $group) {
