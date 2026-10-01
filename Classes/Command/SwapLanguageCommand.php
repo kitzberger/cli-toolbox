@@ -82,16 +82,17 @@ class SwapLanguageCommand extends AbstractCommand
         $sourceField = $GLOBALS['TCA'][$table]['ctrl']['translationSource'] ?? null;
         $diffSourceField = $GLOBALS['TCA'][$table]['ctrl']['transOrigDiffField'] ?? null;
 
-        if (!$languageField || !$origPointerField || !$sourceField) {
+        if (!$languageField || !$origPointerField) {
             $this->io->error(sprintf(
-                'Table %s does not support translations (missing %s/%s/%s in TCA ctrl)!',
+                'Table %s does not support translations (missing %s/%s in TCA ctrl)!',
                 $table,
                 'languageField',
-                'transOrigPointerField',
-                'translationSource'
+                'transOrigPointerField'
             ));
             return self::FAILURE;
         }
+
+        $isCategory = ($table === 'sys_category');
 
         $this->outputLine('memory_limit: ' . ini_get('memory_limit'));
         $memoryLimit = $input->getOption('memory-limit');
@@ -205,18 +206,38 @@ class SwapLanguageCommand extends AbstractCommand
             }
 
             if ($output->isVerbose()) {
+                $sourcePart = $sourceField ? ', ' . $sourceField . '=0' : '';
                 $this->outputLine(sprintf(
-                    '  UPDATE %s SET %s=0, %s=0, %s=0%s WHERE uid=%d',
-                    $table, $languageField, $origPointerField, $sourceField, $diffPart, $tUid
+                    '  UPDATE %s SET %s=0, %s=0%s%s WHERE uid=%d',
+                    $table, $languageField, $origPointerField, $sourcePart, $diffPart, $tUid
                 ));
+                $sourcePart = $sourceField ? ', ' . $sourceField . '=' . $tUid : '';
                 $this->outputLine(sprintf(
-                    '  UPDATE %s SET %s=%d, %s=%d, %s=%d%s WHERE uid=%d',
-                    $table, $languageField, $language, $origPointerField, $tUid, $sourceField, $tUid, $diffPart, $dUid
+                    '  UPDATE %s SET %s=%d, %s=%d%s%s WHERE uid=%d',
+                    $table, $languageField, $language, $origPointerField, $tUid, $sourcePart, $diffPart, $dUid
                 ));
                 if (!empty($siblings)) {
                     $this->outputLine(sprintf(
-                        '  UPDATE %s SET %s=%d, %s=%d%s WHERE uid IN (%s)',
-                        $table, $origPointerField, $tUid, $sourceField, $tUid, $diffPart, implode(',', $siblings)
+                        '  UPDATE %s SET %s=%d%s%s WHERE uid IN (%s)',
+                        $table, $origPointerField, $tUid, $sourcePart, $diffPart, implode(',', $siblings)
+                    ));
+                }
+                if ($isCategory) {
+                    $this->outputLine(sprintf(
+                        '  UPDATE sys_category SET parent=%d WHERE parent=%d',
+                        $tUid, $dUid
+                    ));
+                    $this->outputLine(sprintf(
+                        '  UPDATE sys_category_record_mm SET uid_local=-uid_local WHERE uid_local IN (%d,%d)',
+                        $dUid, $tUid
+                    ));
+                    $this->outputLine(sprintf(
+                        '  UPDATE sys_category_record_mm SET uid_local=%d WHERE uid_local=%d',
+                        $tUid, -$dUid
+                    ));
+                    $this->outputLine(sprintf(
+                        '  UPDATE sys_category_record_mm SET uid_local=%d WHERE uid_local=%d',
+                        $dUid, -$tUid
                     ));
                 }
             }
@@ -238,7 +259,8 @@ class SwapLanguageCommand extends AbstractCommand
                 $connection->update(
                     $table,
                     array_merge(
-                        [$languageField => 0, $origPointerField => 0, $sourceField => 0],
+                        [$languageField => 0, $origPointerField => 0],
+                        $sourceField ? [$sourceField => 0] : [],
                         $diffSourceField ? [$diffSourceField => ''] : []
                     ),
                     ['uid' => $tUid]
@@ -247,7 +269,8 @@ class SwapLanguageCommand extends AbstractCommand
                 $connection->update(
                     $table,
                     array_merge(
-                        [$languageField => $language, $origPointerField => $tUid, $sourceField => $tUid],
+                        [$languageField => $language, $origPointerField => $tUid],
+                        $sourceField ? [$sourceField => $tUid] : [],
                         $diffSourceField ? [$diffSourceField => ''] : []
                     ),
                     ['uid' => $dUid]
@@ -258,12 +281,24 @@ class SwapLanguageCommand extends AbstractCommand
                         $connection->update(
                             $table,
                             array_merge(
-                                [$origPointerField => $tUid, $sourceField => $tUid],
+                                [$origPointerField => $tUid],
+                                $sourceField ? [$sourceField => $tUid] : [],
                                 $diffSourceField ? [$diffSourceField => ''] : []
                             ),
                             ['uid' => $siblingUid]
                         );
                     }
+                }
+
+                if ($isCategory) {
+                    $connection->update('sys_category', ['parent' => $tUid], ['parent' => $dUid]);
+                    $connection->executeStatement(
+                        'UPDATE sys_category_record_mm SET uid_local = -uid_local WHERE uid_local IN (?, ?)',
+                        [$dUid, $tUid],
+                        [Connection::PARAM_INT, Connection::PARAM_INT]
+                    );
+                    $connection->update('sys_category_record_mm', ['uid_local' => $tUid], ['uid_local' => -$dUid]);
+                    $connection->update('sys_category_record_mm', ['uid_local' => $dUid], ['uid_local' => -$tUid]);
                 }
             }
             $connection->commit();
