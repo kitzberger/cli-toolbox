@@ -39,9 +39,17 @@ services:
         description: 'Determine all uids of a pagetree of a given root uid'
         schedulable: false
 
+  Kitzberger\CliToolbox\Command\UpdateCommand:
+    tags:
+      - name: 'console.command'
+        command: 'toolbox:update'
+        description: 'DataHandler "update" command'
+        schedulable: false
+
   Kitzberger\CliToolbox\Command\MoveFalFolderCommand:
     tags:
       - name: 'console.command'
         command: 'toolbox:move-fal-folder'
         description: 'Move a FAL folder and adjust file records'
         schedulable: false
+
